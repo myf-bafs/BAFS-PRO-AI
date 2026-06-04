@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
+<title>BAFS 地獄救星 - AI 筆記助手</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script>tailwind.config={darkMode:'class',theme:{extend:{colors:{ind:{50:'#eef2ff',100:'#e0e7ff',200:'#c7d2fe',300:'#a5b4fc',400:'#818cf8',500:'#6366f1',600:'#4f46e5',700:'#4338ca',800:'#3730a3',900:'#312e81'}}}}}</script>
+<style>
+*{scrollbar-width:thin;scrollbar-color:#4f46e5 transparent}::selection{background:#4f46e5;color:#fff}
+body{font-family:'Noto Sans TC',sans-serif;background:#f8fafc}
+.dark body{background:#0f172a}
+.glass-nav{background:linear-gradient(135deg,rgba(30,27,75,.97),rgba(49,46,129,.98));backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-bottom:1px solid rgba(255,255,255,.08)}
+.nav-btn{transition:all .25s cubic-bezier(.34,1.56,.64,1)}.nav-btn:hover{transform:scale(1.15) translateY(-1px);box-shadow:0 4px 16px rgba(79,70,229,.4)}
+#chatBox{scroll-behavior:smooth;height:calc(100vh - 200px);overflow-y:auto;padding-bottom:80px}
+.msg-user{background:linear-gradient(135deg,#4f46e5,#7c3aed);color:#fff;border-radius:1.25rem 1.25rem 0.25rem 1.25rem;max-width:85%;align-self:flex-end}
+.msg-ai{background:#fff;border:1px solid #e2e8f0;border-radius:1.25rem 1.25rem 1.25rem 0.25rem;max-width:92%}
+.dark .msg-ai{background:#1e293b;border-color:#334155;color:#e2e8f0}
+.msg-ai p{margin:0.5rem 0;line-height:1.7}
+.msg-ai ul,.msg-ai ol{padding-left:1.25rem;margin:0.4rem 0}
+.msg-ai li{margin:0.2rem 0}
+.msg-ai strong{color:#4f46e5;font-weight:900}
+.dark .msg-ai strong{color:#a5b4fc}
+.msg-ai .topic-tag{display:inline-block;background:#eef2ff;color:#4338ca;font-size:0.65rem;font-weight:900;padding:0.1rem 0.5rem;border-radius:999px;margin:0.1rem 0.15rem}
+.dark .msg-ai .topic-tag{background:#312e81;color:#a5b4fc}
+.typing-dot{width:8px;height:8px;border-radius:50%;background:#6366f1;display:inline-block;animation:typingBounce 1.4s infinite ease-in-out}
+.typing-dot:nth-child(2){animation-delay:0.2s}
+.typing-dot:nth-child(3){animation-delay:0.4s}
+@keyframes typingBounce{0%,80%,100%{transform:scale(0.6);opacity:0.4}40%{transform:scale(1);opacity:1}}
+#inputArea{background:#fff;border-top:1px solid #e2e8f0}
+.dark #inputArea{background:#1e293b;border-color:#334155}
+.cited-chip{font-size:0.6rem;background:#eef2ff;color:#4338ca;padding:0.15rem 0.5rem;border-radius:999px;font-weight:700;display:inline-block}
+.dark .cited-chip{background:#312e81;color:#a5b4fc}
+.quiz-opt:disabled{opacity:0.6;cursor:default}
+</style>
+</head>
+<body>
+<nav class="glass-nav px-3 md:px-5 py-2.5 flex items-center justify-between sticky top-0 z-50">
+    <div class="flex items-center gap-2 md:gap-3">
+        <a href="https://bafspro.infinityfreeapp.com/index.php" class="nav-btn w-8 h-8 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 transition font-bold shadow-md text-sm md:text-base text-white">🏠</a>
+        <span class="text-white font-black text-sm md:text-base">🤖 BAFS 地獄救星</span>
+    </div>
+    <div class="flex items-center gap-1.5 md:gap-2">
+        <button onclick="toggleMode()" id="modeToggle" class="nav-btn text-xs md:text-sm font-bold px-2 py-1 rounded-lg transition">🔥 地獄 mode</button>
+    </div>
+</nav>
+<div class="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 sticky top-[57px] z-40">
+    <div class="max-w-3xl mx-auto flex">
+        <button onclick="switchTab('chat')" id="tabChat" class="tab-btn flex-1 py-3 text-center text-xs md:text-sm font-black transition border-b-2 border-transparent text-slate-400 hover:text-indigo-600">💬 問問題</button>
+        <button onclick="switchTab('grade')" id="tabGrade" class="tab-btn flex-1 py-3 text-center text-xs md:text-sm font-black transition border-b-2 border-transparent text-slate-400 hover:text-indigo-600">📝 功課批改</button>
+        <button onclick="switchTab('quiz')" id="tabQuiz" class="tab-btn flex-1 py-3 text-center text-xs md:text-sm font-black transition border-b-2 border-transparent text-slate-400 hover:text-indigo-600">🎲 隨機練習</button>
+    </div>
+</div>
+<div id="tabChatContent" class="block">
+    <div class="max-w-3xl mx-auto px-3 md:px-4">
+        <div id="chatBox" class="flex flex-col gap-3 py-4"><div class="msg-ai self-start px-4 py-3.5 shadow-sm"><div class="flex items-center gap-2 mb-1.5"><span class="text-xl">🤖</span><span class="font-black text-sm text-indigo-600 dark:text-indigo-400">BAFS 地獄救星</span></div><p class="text-sm text-slate-600 dark:text-slate-300 leading-relaxed">喂喂喂！有咩 BAFS 問題即管問，我夠寸但包你明。例如：</p><div class="flex flex-wrap gap-1.5 mt-2"><span class="cited-chip cursor-pointer" onclick="askSample('什麼是流動資產和流動負債的分別？')">什麼是流動資產和流動負債的分別？</span><span class="cited-chip cursor-pointer" onclick="askSample('解釋 SMART 目標係咩')">解釋 SMART 目標係咩</span><span class="cited-chip cursor-pointer" onclick="askSample('損益表和財務狀況表有咩分別？')">損益表和財務狀況表有咩分別？</span></div></div></div>
+        <div id="chatLoading" class="hidden items-center gap-2 px-4 py-3"><span class="typing-dot"></span><span class="typing-dot"></span><span class="typing-dot"></span><span class="text-xs text-slate-400 ml-2">思考中...</span></div>
+    </div>
+    <div class="fixed bottom-0 left-0 right-0 p-3 md:p-4 shadow-lg z-40 bg-white dark:bg-slate-800 border-t border-slate-200 dark:border-slate-700">
+        <div class="max-w-3xl mx-auto flex gap-2 md:gap-3">
+            <input id="questionInput" type="text" class="flex-1 px-4 py-3 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm outline-none focus:ring-2 focus:ring-indigo-500 transition" placeholder="輸入你嘅 BAFS 問題..." onkeydown="if(event.key==='Enter') sendQuestion()">
+            <button onclick="newChat()" class="px-3 py-3 rounded-xl bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 font-bold text-xs hover:bg-slate-300 transition flex-shrink-0">🆕</button>
+            <button id="sendBtn" onclick="sendQuestion()" class="px-5 py-3 rounded-xl bg-indigo-600 text-white font-black text-sm hover:bg-indigo-700 transition shadow-md disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5">傳送 ➤</button>
+        </div>
+        <p class="text-center text-[10px] text-slate-400 mt-1.5">基於筆記內容回答 · 由 Agnes AI 提供</p>
+    </div>
+</div>
+<div id="tabGradeContent" class="hidden">
+    <div class="max-w-3xl mx-auto px-3 md:px-4 py-4" style="min-height:calc(100vh - 140px)">
+        <div class="bg-white dark:bg-slate-800 rounded-2xl p-5 md:p-6 shadow-sm border dark:border-slate-700">
+            <h3 class="font-black text-base mb-1">📝 功課批改</h3>
+            <p class="text-xs text-slate-400 mb-4">貼上題目同你嘅答案，AI 幫你評分 + 俾建議</p>
+            <div class="space-y-3">
+                <div><label class="text-xs font-bold text-slate-500 mb-1 block">題目</label><textarea id="gradeQuestion" rows="3" class="w-full px-3 py-2.5 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm outline-none focus:ring-2 focus:ring-indigo-500 transition" placeholder="貼上題目文字..."></textarea></div>
+                <div><label class="text-xs font-bold text-slate-500 mb-1 block">你的答案</label><textarea id="gradeAnswer" rows="5" class="w-full px-3 py-2.5 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm outline-none focus:ring-2 focus:ring-indigo-500 transition" placeholder="寫低你嘅答案..."></textarea></div>
+                <button onclick="submitGrade()" id="gradeBtn" class="w-full bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-black py-3 rounded-xl hover:from-indigo-700 hover:to-purple-700 transition shadow-md disabled:opacity-50">📤 提交批改</button>
+            </div>
+            <div id="gradeResult" class="hidden mt-4 p-4 rounded-xl bg-slate-50 dark:bg-slate-900/50 border dark:border-slate-700 text-sm leading-relaxed"></div>
+            <div id="gradeLoading" class="hidden items-center gap-2 px-4 py-3 mt-2"><span class="typing-dot"></span><span class="typing-dot"></span><span class="typing-dot"></span><span class="text-xs text-slate-400 ml-2">批改中...</span></div>
+        </div>
+    </div>
+</div>
+<div id="tabQuizContent" class="hidden">
+    <div class="max-w-3xl mx-auto px-3 md:px-4 py-4" style="min-height:calc(100vh - 140px)">
+        <div class="bg-white dark:bg-slate-800 rounded-2xl p-5 md:p-6 shadow-sm border dark:border-slate-700">
+            <div class="flex items-center justify-between mb-4"><h3 class="font-black text-base">🎲 <span id="quizModeLabel">隨機練習</span></h3><div class="flex gap-2"><button onclick="toggleQuizMode()" id="quizModeToggle" class="text-xs font-bold px-2.5 py-1.5 rounded-lg transition bg-purple-500/20 text-purple-600 dark:text-purple-300 hover:bg-purple-500/30">🤖 AI 出題</button><button onclick="loadRandomQuiz()" class="text-xs font-bold text-indigo-600 hover:text-indigo-800 bg-indigo-50 dark:bg-indigo-900/30 px-3 py-1.5 rounded-lg transition">🔄 下一題</button></div></div>
+            <div id="quizCard"><p class="text-slate-400 text-sm text-center py-8">按「下一題」開始練習</p></div>
+            <div id="quizLoading" class="hidden items-center gap-2 px-4 py-3"><span class="typing-dot"></span><span class="typing-dot"></span><span class="typing-dot"></span><span class="text-xs text-slate-400 ml-2">載入中...</span></div>
+            <div id="quizResult" class="hidden mt-3 p-4 rounded-xl bg-slate-50 dark:bg-slate-900/50 border dark:border-slate-700 text-sm leading-relaxed"></div>
+        </div>
+    </div>
+</div>
+<script src="notes_data.js"></script>
+<script src="quiz_data.js"></script>
+<script>
+// ===== CONFIG =====
+const API_KEY = 'sk-UdCwJXcqC6kPDkHCTp1t2u7H2L5raegVHOY26EUvebB7rC4v';
+const API_ENDPOINT = 'https://apihub.agnes-ai.com/v1/chat/completions';
+const MODEL = 'agnes-2.0-flash';
+
+// ===== STATE =====
+let loading = false;
+let chatHistory = [];
+let currentMode = 'savage';
+let currentTab = 'chat';
+let quizData = null;
+
+// ===== Tab Switching =====
+function switchTab(tab) {
+    currentTab = tab;
+    document.querySelectorAll('.tab-btn').forEach(b => {
+        b.classList.remove('border-indigo-500','text-indigo-600','dark:text-indigo-400');
+        b.classList.add('border-transparent','text-slate-400');
+    });
+    document.getElementById('tabChatContent').className = 'hidden';
+    document.getElementById('tabGradeContent').className = 'hidden';
+    document.getElementById('tabQuizContent').className = 'hidden';
+    if (tab === 'chat') {
+        document.getElementById('tabChat').classList.add('border-indigo-500','text-indigo-600','dark:text-indigo-400');
+        document.getElementById('tabChatContent').className = 'block';
+        setTimeout(() => document.getElementById('questionInput')?.focus(), 100);
+    } else if (tab === 'grade') {
+        document.getElementById('tabGrade').classList.add('border-indigo-500','text-indigo-600','dark:text-indigo-400');
+        document.getElementById('tabGradeContent').className = 'block';
+    } else if (tab === 'quiz') {
+        document.getElementById('tabQuiz').classList.add('border-indigo-500','text-indigo-600','dark:text-indigo-400');
+        document.getElementById('tabQuizContent').className = 'block';
+        if (!quizData) loadRandomQuiz();
+    }
+}
+
+// ===== Mode =====
+function loadMode() {
+    try { const s = localStorage.getItem('bafs_ai_mode'); if (s === 'gentle') currentMode = 'gentle'; } catch(e) {}
+    updateModeBtn();
+}
+function updateModeBtn() {
+    const btn = document.getElementById('modeToggle');
+    if (currentMode === 'gentle') {
+        btn.textContent = '☺️ 溫柔 mode';
+        btn.className = 'nav-btn text-xs md:text-sm font-bold px-2 py-1 rounded-lg transition bg-pink-500/30 text-pink-200 hover:bg-pink-500/50';
+    } else {
+        btn.textContent = '🔥 地獄 mode';
+        btn.className = 'nav-btn text-xs md:text-sm font-bold px-2 py-1 rounded-lg transition bg-orange-500/30 text-orange-200 hover:bg-orange-500/50';
+    }
+}
+function toggleMode() {
+    currentMode = currentMode === 'savage' ? 'gentle' : 'savage';
+    try { localStorage.setItem('bafs_ai_mode', currentMode); } catch(e) {}
+    updateModeBtn();
+}
+
+// ===== Chat History =====
+function loadHistory() {
+    try { const s = localStorage.getItem('bafs_ai_history'); if (s) chatHistory = JSON.parse(s); } catch(e) {}
+}
+function saveHistory() {
+    try { localStorage.setItem('bafs_ai_history', JSON.stringify(chatHistory.slice(-50))); } catch(e) {}
+}
+function restoreMessages() {
+    if (chatHistory.length === 0) return;
+    const box = document.getElementById('chatBox');
+    box.innerHTML = '';
+    for (const msg of chatHistory) {
+        const div = document.createElement('div');
+        if (msg.role === 'user') {
+            div.className = 'msg-user px-4 py-3 shadow-sm';
+            div.innerHTML = '<p class="text-sm leading-relaxed">' + escapeHtml(msg.content) + '</p>';
+        } else {
+            div.className = 'msg-ai self-start px-4 py-3.5 shadow-sm';
+            div.innerHTML = '<div class="flex items-center gap-2 mb-1.5"><span class="text-xl">🤖</span><span class="font-black text-sm text-indigo-600 dark:text-indigo-400">BAFS 地獄救星</span></div><div class="text-sm text-slate-700 dark:text-slate-200 leading-relaxed">' + markedContent(msg.content) + '</div>';
+        }
+        box.appendChild(div);
+    }
+    box.scrollTop = box.scrollHeight;
+}
+function newChat() {
+    chatHistory = []; saveHistory();
+    document.getElementById('chatBox').innerHTML = '<div class="msg-ai self-start px-4 py-3.5 shadow-sm"><div class="flex items-center gap-2 mb-1.5"><span class="text-xl">🤖</span><span class="font-black text-sm text-indigo-600 dark:text-indigo-400">BAFS 地獄救星</span></div><p class="text-sm text-slate-600 dark:text-slate-300 leading-relaxed">喂喂喂！有咩 BAFS 問題即管問，我夠寸但包你明。例如：</p><div class="flex flex-wrap gap-1.5 mt-2"><span class="cited-chip cursor-pointer" onclick="askSample(\'什麼是流動資產和流動負債的分別？\')">什麼是流動資產和流動負債的分別？</span><span class="cited-chip cursor-pointer" onclick="askSample(\'解釋 SMART 目標係咩\')">解釋 SMART 目標係咩</span><span class="cited-chip cursor-pointer" onclick="askSample(\'損益表和財務狀況表有咩分別？\')">損益表和財務狀況表有咩分別？</span></div></div>';
+    document.getElementById('questionInput').value = ''; document.getElementById('questionInput').focus();
+}
+var citedMap = {};
+
+// ===== Helpers =====
+function escapeHtml(text) { const d = document.createElement('div'); d.textContent = text; return d.innerHTML; }
+function markedContent(text) {
+    text = text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+    text = text.replace(/\[([A-Z0-9.-]+)\]/g, function(m, c) { var id = citedMap[c]; return id ? '<a href="notes.php?topic='+id+'" class="topic-tag hover:bg-indigo-200 dark:hover:bg-indigo-800 transition">'+c+'</a>' : '<span class="topic-tag">'+c+'</span>'; });
+    text = text.replace(/\n{2,}/g, '</p><p class="mt-2">'); text = text.replace(/\n/g, '<br>');
+    text = text.replace(/^\s*[-•]\s/gm, '&nbsp;&nbsp;• ');
+    return '<p class="mt-0">' + text + '</p>';
+}
+function askSample(q) { document.getElementById('questionInput').value = q; sendQuestion(); }
+
+// ===== RAG Search =====
+function searchNotes(question) {
+    const raw = question.replace(/[.,!?;:()（）\[\]【】、，。？；：！""''「」『』]/g, ' ').split(/\s+/);
+    const keywords = [];
+    for (let t of raw) {
+        t = t.trim();
+        if (t.length >= 2) { keywords.push(t); for (let j = 0; j < t.length - 1; j++) keywords.push(t.substr(j, 2)); }
+    }
+    const unique = [...new Set(keywords)].slice(0, 10);
+    const sections = NOTES_MD.split(/### Topic \d+:/);
+    const headers = NOTES_MD.match(/### Topic \d+:.*?(?=\n|$)/g) || [];
+    let scored = [];
+    for (let i = 1; i < sections.length; i++) {
+        const body = sections[i];
+        let score = 0;
+        for (const kw of unique) { const re = new RegExp(kw.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi'); const m = body.match(re); if (m) score += m.length; }
+        if (score > 0) {
+            const h = headers[i-1] || '';
+            const match = h.match(/### Topic (\d+):\s*(\S+)\s*-\s*(.*)/);
+            scored.push({ topic_id: parseInt(match?.[1]||i), code: match?.[2]||'', title: match?.[3]||'', body: body.substring(0, 500), score });
+        }
+    }
+    scored.sort((a,b) => b.score - a.score);
+    if (scored.length === 0) return { context: '', cited: [] };
+    const best = scored.slice(0, 3);
+    let ctx = best.map(s => '[' + s.code + ' - ' + s.title + ']\n' + s.body).join('\n\n---\n\n');
+    let cited = best.map(s => ({ code: s.code, title: s.title, topic_id: s.topic_id }));
+    return { context: ctx, cited };
+}
+
+// ===== Chat =====
+function appendMessage(role, content, cited) {
+    const box = document.getElementById('chatBox');
+    const div = document.createElement('div');
+    if (role === 'user') {
+        div.className = 'msg-user px-4 py-3 shadow-sm';
+        div.innerHTML = '<p class="text-sm leading-relaxed">' + escapeHtml(content) + '</p>';
+        chatHistory.push({role:'user', content});
+    } else {
+        div.className = 'msg-ai self-start px-4 py-3.5 shadow-sm';
+        let h = '';
+        if (cited && cited.length) {
+            cited.forEach(t => { if (t.code && t.topic_id) citedMap[t.code] = t.topic_id; });
+            h = '<div class="flex flex-wrap gap-1 mt-2.5 pt-2.5 border-t border-slate-200 dark:border-slate-600">' + cited.map(t => '<a href="notes.php?topic='+(t.topic_id||'')+'" class="topic-tag hover:bg-indigo-200 dark:hover:bg-indigo-800 transition">'+(t.code||'')+' '+(t.title||'')+'</a>').join('') + '</div>';
+        }
+        div.innerHTML = '<div class="flex items-center gap-2 mb-1.5"><span class="text-xl">🤖</span><span class="font-black text-sm text-indigo-600 dark:text-indigo-400">BAFS 地獄救星</span></div><div class="text-sm text-slate-700 dark:text-slate-200 leading-relaxed">' + markedContent(content) + '</div>' + h;
+        chatHistory.push({role:'assistant', content});
+    }
+    box.appendChild(div); box.scrollTop = box.scrollHeight; saveHistory();
+}
+async function sendQuestion() {
+    const input = document.getElementById('questionInput');
+    const q = input.value.trim();
+    if (!q || loading) return; input.value = '';
+    loading = true; document.getElementById('sendBtn').disabled = true;
+    document.getElementById('chatLoading').classList.remove('hidden'); document.getElementById('chatLoading').classList.add('flex');
+    appendMessage('user', q);
+    const recent = chatHistory.slice(-21);
+    const historyForApi = recent.slice(0, -1);
+    const { context, cited } = searchNotes(q);
+    try {
+        const tone = currentMode === 'gentle'
+            ? '你係一個好溫柔體貼嘅香港 BAFS 補習老師，人稱「地獄救星」。語氣：溫柔鼓勵正面。用書面語答題目內容。多啲「加油～」、「慢慢嚟☺️」。'
+            : '你係一個超寸嘴但又好有心教書嘅香港 BAFS 補習老師，人稱「地獄救星」。語氣：超寸嘴！題目內容用書面語，其他用粵語口語（啦囉喂吓下話）。開頭串兩句熱身，中間認真答，最後再串收尾。金句參考：「你上堂有冇聽書㗎？」、「好簡單啫大佬」。';
+        const system = tone + '\n\n守則：\n- 所有 BAFS 知識必須嚴格根據「筆記內容」入面嘅原文，一字不改。\n- 引用課題時用筆記原文作答，唔好自己作。\n- 筆記唔夠可加自己知識，但要標明「網上補充」。\n- 引用課題（topic code），並提醒學生可以 click 課題標籤直接去筆記頁面。\n- 回答中絕對不可出現粗口字眼，要用星星（*）代替。\n- 如果問題同 BAFS 無關，簡單回答幾句就得，最後一定要叫佢溫 BAFS。';
+        const userMsg = context ? '【筆記內容】\n' + context + '\n\n【學生問題】\n' + q : q;
+        const msgs = [{role:'system', content: system}];
+        for (const h of historyForApi) { if (['user','assistant'].includes(h.role)) msgs.push({role:h.role, content:h.content}); }
+        msgs.push({role:'user', content: userMsg});
+        if (msgs.length > 5) msgs = [msgs[0]].concat(msgs.slice(-4));
+
+        const res = await fetch(API_ENDPOINT, {
+            method:'POST',
+            headers:{'Content-Type':'application/json','Authorization':'Bearer '+API_KEY},
+            body:JSON.stringify({model:MODEL, messages:msgs, temperature:0.9, max_tokens:512})
+        });
+        const data = await res.json();
+        if (data.error) appendMessage('ai', '⚠️ ' + (data.error.message || data.error));
+        else if (data.choices?.[0]?.message?.content) appendMessage('ai', data.choices[0].message.content, cited);
+        else appendMessage('ai', '⚠️ AI 回應格式錯誤');
+    } catch(e) { appendMessage('ai', '⚠️ 網絡錯誤：' + e.message); }
+    document.getElementById('chatLoading').classList.add('hidden'); document.getElementById('chatLoading').classList.remove('flex');
+    loading = false; document.getElementById('sendBtn').disabled = false; document.getElementById('questionInput').focus();
+}
+
+// ===== Grade =====
+async function submitGrade() {
+    const question = document.getElementById('gradeQuestion').value.trim();
+    const answer = document.getElementById('gradeAnswer').value.trim();
+    if (!question || !answer) { alert('請填寫題目及你的答案'); return; }
+    document.getElementById('gradeBtn').disabled = true;
+    document.getElementById('gradeLoading').classList.remove('hidden'); document.getElementById('gradeLoading').classList.add('flex');
+    document.getElementById('gradeResult').classList.add('hidden');
+    try {
+        const tone = currentMode === 'gentle' ? '溫柔鼓勵' : '寸嘴搞笑';
+        const msgs = [{role:'system', content:'你係一位香港 BAFS 補習老師。學生交咗一份功課，你嘅任務係用'+tone+'嘅語氣評分（10分滿分）同給予具體改進建議。\n\n守則：\n- 先俾一個分數（X/10）\n- 指出學生答案嘅優點同缺點\n- 提供一個「建議答案」或「參考要點」\n- 語氣：'+tone+'，但教學內容認真。\n- 必須引用相關 BAFS 概念。'}];
+        msgs.push({role:'user', content:'【問題】'+question+'\n【學生答案】'+answer+'\n請評分並給予建議。'});
+        const res = await fetch(API_ENDPOINT, {
+            method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer '+API_KEY},
+            body:JSON.stringify({model:MODEL, messages:msgs, temperature:0.7, max_tokens:1024})
+        });
+        const data = await res.json();
+        const el = document.getElementById('gradeResult');
+        if (data.error) el.innerHTML = '⚠️ ' + (data.error.message || data.error);
+        else if (data.choices?.[0]?.message?.content) el.innerHTML = markedContent(data.choices[0].message.content);
+        else el.innerHTML = '⚠️ AI 回應格式錯誤';
+        el.classList.remove('hidden');
+    } catch(e) { document.getElementById('gradeResult').innerHTML = '⚠️ 網絡錯誤：' + e.message; document.getElementById('gradeResult').classList.remove('hidden'); }
+    document.getElementById('gradeLoading').classList.add('hidden'); document.getElementById('gradeLoading').classList.remove('flex');
+    document.getElementById('gradeBtn').disabled = false;
+}
+
+// ===== Random Quiz =====
+function loadRandomQuiz() {
+    document.getElementById('quizLoading').classList.remove('hidden'); document.getElementById('quizLoading').classList.add('flex');
+    document.getElementById('quizResult').classList.add('hidden');
+    const allQs = [];
+    for (const tid in QUIZ_DATA) {
+        const t = QUIZ_DATA[tid];
+        if (t.quiz) for (let qi = 0; qi < t.quiz.length; qi++) allQs.push({topic_id: parseInt(tid), code: t.code, title: t.title, q_idx: qi, ...t.quiz[qi]});
+    }
+    if (allQs.length === 0) { document.getElementById('quizCard').innerHTML = '<p class="text-red-500 text-sm">暫無題目</p>'; document.getElementById('quizLoading').classList.add('hidden'); document.getElementById('quizLoading').classList.remove('flex'); return; }
+    const pick = allQs[Math.floor(Math.random() * allQs.length)];
+    quizData = pick;
+    const labels = ['A','B','C','D'];
+    let opts = '<div class="grid grid-cols-1 gap-2 mt-3">';
+    pick.o.forEach((o,i) => {
+        opts += '<button onclick="answerQuiz('+i+')" class="quiz-opt text-left w-full p-3 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm font-bold hover:bg-indigo-50 hover:border-indigo-400 dark:hover:bg-indigo-900/30 transition flex items-center gap-3"><span class="w-7 h-7 rounded-full bg-indigo-100 dark:bg-indigo-900/50 text-indigo-600 dark:text-indigo-400 flex items-center justify-center text-xs font-black flex-shrink-0">'+labels[i]+'</span><span>'+escapeHtml(o)+'</span></button>';
+    });
+    opts += '</div>';
+    document.getElementById('quizCard').innerHTML = '<div class="flex items-center gap-2 mb-2"><span class="text-[10px] font-black uppercase bg-indigo-600 text-white px-2 py-0.5 rounded-full">'+pick.code+'</span><span class="text-xs text-slate-400">'+pick.title+'</span></div><p class="text-sm font-bold mb-1">'+escapeHtml(pick.q)+'</p>'+opts;
+    document.querySelectorAll('.quiz-opt').forEach(b => b.disabled = false);
+    document.getElementById('quizLoading').classList.add('hidden'); document.getElementById('quizLoading').classList.remove('flex');
+}
+async function answerQuiz(selected) {
+    if (!quizData) return;
+    document.querySelectorAll('.quiz-opt').forEach(b => b.disabled = true);
+    document.getElementById('quizLoading').classList.remove('hidden'); document.getElementById('quizLoading').classList.add('flex');
+    document.getElementById('quizResult').classList.add('hidden');
+    document.querySelectorAll('.quiz-opt').forEach((b,i) => { if (i === selected) b.classList.add('ring-2','ring-indigo-500'); });
+    const correct = quizData.c;
+    const is_correct = selected === correct;
+    const labels = ['A','B','C','D'];
+    document.querySelectorAll('.quiz-opt').forEach((b,i) => {
+        if (i === correct) b.classList.add('bg-green-100','border-green-500','dark:bg-green-900/30');
+        else if (i === selected && !is_correct) b.classList.add('bg-red-100','border-red-500','dark:bg-red-900/30');
+    });
+    // Ask AI for explanation
+    try {
+        const tone = currentMode === 'gentle' ? '溫柔鼓勵' : '寸嘴搞笑';
+        const msgs = [{role:'system', content:'你係一位香港 BAFS 補習老師，用'+tone+'嘅語氣解釋點解學生答啱/錯。'}];
+        msgs.push({role:'user', content:'【課題】'+quizData.code+' - '+quizData.title+'\n【題目】'+quizData.q+'\n【選項】\n'+quizData.o.map((o,i)=>labels[i]+'. '+o).join('\n')+'\n【學生揀咗】'+labels[selected]+'\n【正確答案】'+labels[correct]});
+        const res = await fetch(API_ENDPOINT, {
+            method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer '+API_KEY},
+            body:JSON.stringify({model:MODEL, messages:msgs, temperature:0.7, max_tokens:512})
+        });
+        const data = await res.json();
+        const el = document.getElementById('quizResult');
+        let feedback = '';
+        if (data.choices?.[0]?.message?.content) feedback = data.choices[0].message.content;
+        else feedback = '正確答案：' + labels[correct];
+        el.innerHTML = '<div class="flex items-center gap-2 mb-2"><span class="text-lg">'+(is_correct?'✅':'❌')+'</span><span class="font-black text-sm '+(is_correct?'text-green-600':'text-red-500')+'">'+(is_correct?'答對了！':'答錯了！正確答案：'+labels[correct])+'</span></div><div class="text-sm leading-relaxed">'+markedContent(feedback)+'</div>';
+        el.classList.remove('hidden');
+    } catch(e) { document.getElementById('quizResult').innerHTML = '<div class="text-sm">⚠️ 網絡錯誤：'+e.message+'</div>'; document.getElementById('quizResult').classList.remove('hidden'); }
+    document.getElementById('quizLoading').classList.add('hidden'); document.getElementById('quizLoading').classList.remove('flex');
+}
+
+// ===== AI Quiz Generation =====
+let useAIQuiz = false;
+function toggleQuizMode() {
+    useAIQuiz = !useAIQuiz;
+    const btn = document.getElementById('quizModeToggle');
+    const label = document.getElementById('quizModeLabel');
+    if (useAIQuiz) {
+        btn.textContent = '📚 題庫模式';
+        btn.className = 'text-xs font-bold px-2.5 py-1.5 rounded-lg transition bg-indigo-500/20 text-indigo-600 dark:text-indigo-300 hover:bg-indigo-500/30';
+        label.textContent = 'AI 出題';
+    } else {
+        btn.textContent = '🤖 AI 出題';
+        btn.className = 'text-xs font-bold px-2.5 py-1.5 rounded-lg transition bg-purple-500/20 text-purple-600 dark:text-purple-300 hover:bg-purple-500/30';
+        label.textContent = '隨機練習';
+    }
+    document.getElementById('quizResult').classList.add('hidden');
+}
+async function generateAIQuiz() {
+    document.getElementById('quizLoading').classList.remove('hidden'); document.getElementById('quizLoading').classList.add('flex');
+    document.getElementById('quizResult').classList.add('hidden');
+    try {
+        // Pick a random topic from notes for context
+        const topicSections = NOTES_MD.split(/\n(?=### Topic \d+:)/);
+        const valid = topicSections.filter(s => s.trim().length > 100);
+        if (valid.length === 0) throw new Error('No notes available');
+        const picked = valid[Math.floor(Math.random() * valid.length)];
+        const headerMatch = picked.match(/### Topic (\d+):\s*(\S+)\s*-\s*(.*)/);
+        const code = headerMatch ? headerMatch[2] : 'C?';
+        const title = headerMatch ? headerMatch[3] : '';
+        // Truncate to 1500 chars for prompt
+        const noteExcerpt = picked.substring(0, 1500);
+
+        const sysPrompt = '你係一位香港 BAFS 老師。你根據以下筆記內容出一條長題目（非選擇題）。\n\n【筆記內容】\n' + noteExcerpt + '\n\n請用書面語出一條結構題／長題目，要求學生解釋、分析或應用相關概念。題目要根據以上筆記內容用字及概念出，不可出筆記無提及嘅內容。\n\n格式（嚴格 JSON，不可加其他文字）：\n{"q":"題目","topic":"'+code+'"}';
+        const msgs = [{role:'system', content:'你係一位香港 BAFS 老師。你嚴格根據筆記內容出題，只會輸出 JSON。'}];
+        msgs.push({role:'user', content: sysPrompt});
+        const res = await fetch(API_ENDPOINT, {
+            method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer '+API_KEY},
+            body:JSON.stringify({model:MODEL, messages:msgs, temperature:0.8, max_tokens:800})
+        });
+        const data = await res.json();
+        const raw = data.choices?.[0]?.message?.content || '';
+        const jsonMatch = raw.match(/\{[\s\S]*"q"\s*:\s*"[^"]*"[\s\S]*\}/);
+        if (!jsonMatch) throw new Error('JSON parse failed');
+        const parsed = JSON.parse(jsonMatch[0]);
+        if (!parsed.q) throw new Error('No question generated');
+
+        quizData = { q: parsed.q, code: code, title: title, ai: true, noteExcerpt: noteExcerpt, answered: false };
+        const card = document.getElementById('quizCard');
+        card.innerHTML = '<div class="flex items-center gap-2 mb-3"><span class="text-[10px] font-black uppercase bg-purple-600 text-white px-2 py-0.5 rounded-full">'+code+'</span><span class="text-xs text-slate-400">'+title+'</span></div><p class="text-sm font-bold mb-3 leading-relaxed">'+escapeHtml(quizData.q)+'</p><textarea id="aiAnswerInput" rows="5" class="w-full px-3 py-2.5 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm outline-none focus:ring-2 focus:ring-indigo-500 transition" placeholder="係度寫你嘅答案..."></textarea><button onclick="submitAIAnswer()" id="submitAIAnsBtn" class="mt-3 w-full bg-gradient-to-r from-purple-600 to-pink-600 text-white font-black py-3 rounded-xl hover:from-purple-700 hover:to-pink-700 transition shadow-md">📤 提交答案</button>';
+    } catch(e) { document.getElementById('quizCard').innerHTML = '<p class="text-red-500 text-sm">⚠️ AI 出題失敗：'+e.message+'</p>'; }
+    document.getElementById('quizLoading').classList.add('hidden'); document.getElementById('quizLoading').classList.remove('flex');
+}
+async function submitAIAnswer() {
+    if (!quizData || quizData.answered) return;
+    const answer = document.getElementById('aiAnswerInput').value.trim();
+    if (!answer) { alert('請先寫低你嘅答案'); return; }
+    quizData.answered = true;
+    document.getElementById('submitAIAnsBtn').disabled = true;
+    document.getElementById('quizLoading').classList.remove('hidden'); document.getElementById('quizLoading').classList.add('flex');
+    document.getElementById('quizResult').classList.add('hidden');
+    try {
+        const tone = currentMode === 'gentle' ? '溫柔鼓勵' : '寸嘴搞笑';
+        const msgs = [{role:'system', content:'你係一位香港 BAFS 補習老師，人稱「地獄救星」。語氣：'+tone+'。你嘅任務係評分（10分滿分）、提供參考答案、指出學生答案中邊句寫得好、邊句可以點改善，以及對比參考答案同學生答案嘅差距。'}];
+        msgs.push({role:'user', content:'【筆記內容】\n'+quizData.noteExcerpt+'\n\n【題目】\n'+quizData.q+'\n\n【學生答案】\n'+answer+'\n\n請評分並給予詳細改善建議，指出具體邊句句子可以改善，以及提供參考答案。'});
+        const res = await fetch(API_ENDPOINT, {
+            method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer '+API_KEY},
+            body:JSON.stringify({model:MODEL, messages:msgs, temperature:0.7, max_tokens:1024})
+        });
+        const data = await res.json();
+        const el = document.getElementById('quizResult');
+        let feedback = '';
+        if (data.choices?.[0]?.message?.content) feedback = data.choices[0].message.content;
+        else feedback = '⚠️ AI 回應格式錯誤';
+        el.innerHTML = '<div class="text-sm leading-relaxed">'+markedContent(feedback)+'</div>';
+        el.classList.remove('hidden');
+    } catch(e) { document.getElementById('quizResult').innerHTML = '<div class="text-sm">⚠️ 網絡錯誤：'+e.message+'</div>'; document.getElementById('quizResult').classList.remove('hidden'); }
+    document.getElementById('quizLoading').classList.add('hidden'); document.getElementById('quizLoading').classList.remove('flex');
+}
+// Override loadRandomQuiz to check mode
+const _origLoadQuiz = loadRandomQuiz;
+loadRandomQuiz = function() {
+    if (useAIQuiz) { generateAIQuiz(); return; }
+    _origLoadQuiz();
+};
+// Override answerQuiz (adds topic context for bank questions)
+answerQuiz = async function(selected) {
+    if (!quizData) return;
+    document.querySelectorAll('.quiz-opt').forEach(b => b.disabled = true);
+    document.getElementById('quizLoading').classList.remove('hidden'); document.getElementById('quizLoading').classList.add('flex');
+    document.getElementById('quizResult').classList.add('hidden');
+    document.querySelectorAll('.quiz-opt').forEach((b,i) => { if (i === selected) b.classList.add('ring-2','ring-indigo-500'); });
+    const correct = quizData.c;
+    const is_correct = selected === correct;
+    const labels = ['A','B','C','D'];
+    document.querySelectorAll('.quiz-opt').forEach((b,i) => {
+        if (i === correct) b.classList.add('bg-green-100','border-green-500','dark:bg-green-900/30');
+        else if (i === selected && !is_correct) b.classList.add('bg-red-100','border-red-500','dark:bg-red-900/30');
+    });
+    try {
+        const tone = currentMode === 'gentle' ? '溫柔鼓勵' : '寸嘴搞笑';
+        const msgs = [{role:'system', content:'你係一位香港 BAFS 補習老師，用'+tone+'嘅語氣解釋點解學生答啱/錯。'}];
+        const topicCtx = (quizData.code && quizData.code !== 'AI') ? '【課題】'+quizData.code+' - '+quizData.title+'\n' : '';
+        msgs.push({role:'user', content: topicCtx+'【題目】'+quizData.q+'\n【選項】\n'+quizData.o.map((o,i)=>labels[i]+'. '+o).join('\n')+'\n【學生揀咗】'+labels[selected]+'\n【正確答案】'+labels[correct]});
+        const res = await fetch(API_ENDPOINT, {
+            method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer '+API_KEY},
+            body:JSON.stringify({model:MODEL, messages:msgs, temperature:0.7, max_tokens:512})
+        });
+        const data = await res.json();
+        const el = document.getElementById('quizResult');
+        let feedback = '';
+        if (data.choices?.[0]?.message?.content) feedback = data.choices[0].message.content;
+        else feedback = '正確答案：' + labels[correct];
+        el.innerHTML = '<div class="flex items-center gap-2 mb-2"><span class="text-lg">'+(is_correct?'✅':'❌')+'</span><span class="font-black text-sm '+(is_correct?'text-green-600':'text-red-500')+'">'+(is_correct?'答對了！':'答錯了！正確答案：'+labels[correct])+'</span></div><div class="text-sm leading-relaxed">'+markedContent(feedback)+'</div>';
+        el.classList.remove('hidden');
+    } catch(e) { document.getElementById('quizResult').innerHTML = '<div class="text-sm">⚠️ 網絡錯誤：'+e.message+'</div>'; document.getElementById('quizResult').classList.remove('hidden'); }
+    document.getElementById('quizLoading').classList.add('hidden'); document.getElementById('quizLoading').classList.remove('flex');
+};
+
+// ===== Init =====
+loadMode(); loadHistory(); restoreMessages();
+</script>
+</body>
+</html>
