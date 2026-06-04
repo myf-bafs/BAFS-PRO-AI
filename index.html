@@ -137,7 +137,7 @@ var citedMap = {};
 function escapeHtml(text) { const d = document.createElement('div'); d.textContent = text; return d.innerHTML; }
 function markedContent(text) {
     text = text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
-    text = text.replace(/\[([A-Z0-9.-]+)\]/g, function(m, c) { var id = citedMap[c]; return id ? '<a href="notes.php?topic='+id+'" class="topic-tag hover:bg-indigo-200 dark:hover:bg-indigo-800 transition">'+c+'</a>' : '<span class="topic-tag">'+c+'</span>'; });
+    text = text.replace(/\[([A-Z0-9.-]+)\]/g, function(m, c) { var id = citedMap[c]; return id ? '<a href="https://bafspro.infinityfreeapp.com/notes.php?topic='+id+'" target="_top" class="topic-tag hover:bg-indigo-200 dark:hover:bg-indigo-800 transition">'+c+'</a>' : '<span class="topic-tag">'+c+'</span>'; });
     text = text.replace(/\n{2,}/g, '</p><p class="mt-2">'); text = text.replace(/\n/g, '<br>');
     text = text.replace(/^\s*[-•]\s/gm, '&nbsp;&nbsp;• ');
     return '<p class="mt-0">' + text + '</p>';
@@ -168,7 +168,7 @@ function appendMessage(role, content, cited) {
     else {
         div.className = 'msg-ai self-start px-4 py-3.5 shadow-sm';
         let h = '';
-        if (cited && cited.length) { cited.forEach(t => { if (t.code && t.topic_id) citedMap[t.code] = t.topic_id; }); h = '<div class="flex flex-wrap gap-1 mt-2.5 pt-2.5 border-t border-slate-200 dark:border-slate-600">' + cited.map(t => '<a href="notes.php?topic='+(t.topic_id||'')+'" class="topic-tag hover:bg-indigo-200 dark:hover:bg-indigo-800 transition">'+(t.code||'')+' '+(t.title||'')+'</a>').join('') + '</div>'; }
+        if (cited && cited.length) { cited.forEach(t => { if (t.code && t.topic_id) citedMap[t.code] = t.topic_id; }); h = '<div class="flex flex-wrap gap-1 mt-2.5 pt-2.5 border-t border-slate-200 dark:border-slate-600">' + cited.map(t => '<a href="https://bafspro.infinityfreeapp.com/notes.php?topic='+(t.topic_id||'')+'" target="_top" class="topic-tag hover:bg-indigo-200 dark:hover:bg-indigo-800 transition">'+(t.code||'')+' '+(t.title||'')+'</a>').join('') + '</div>'; }
         div.innerHTML = '<div class="flex items-center gap-2 mb-1.5"><span class="text-xl">🤖</span><span class="font-black text-sm text-indigo-600 dark:text-indigo-400">BAFS 地獄救星</span></div><div class="text-sm text-slate-700 dark:text-slate-200 leading-relaxed">' + markedContent(content) + '</div>' + h;
         chatHistory.push({role:'assistant', content});
     }
@@ -191,7 +191,7 @@ async function sendQuestion() {
         for (const h of historyForApi) { if (['user','assistant'].includes(h.role)) msgs.push({role:h.role, content:h.content}); }
         msgs.push({role:'user', content: context ? '【筆記內容】\n' + context + '\n\n【學生問題】\n' + q : q});
         if (msgs.length > 5) msgs = [msgs[0]].concat(msgs.slice(-4));
-        const res = await fetch(API_ENDPOINT, { method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer '+API_KEY}, body:JSON.stringify({model:MODEL, messages:msgs, temperature:0.9, max_tokens:512}) });
+        const res = await fetch(API_ENDPOINT, { method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer '+API_KEY}, body:JSON.stringify({model:MODEL, messages:msgs, temperature:0.9, max_tokens:2048}) });
         const data = await res.json();
         if (data.error) appendMessage('ai', '⚠️ ' + (data.error.message || data.error));
         else if (data.choices?.[0]?.message?.content) appendMessage('ai', data.choices[0].message.content, cited);
@@ -211,7 +211,7 @@ async function submitGrade() {
         const tone = currentMode === 'gentle' ? '溫柔鼓勵' : '寸嘴搞笑';
         const msgs = [{role:'system', content:'你係一位香港 BAFS 補習老師。學生交咗一份功課，你嘅任務係用'+tone+'嘅語氣評分（10分滿分）同給予具體改進建議。\n\n守則：\n- 先俾一個分數（X/10）\n- 指出學生答案嘅優點同缺點\n- 提供一個「建議答案」或「參考要點」\n- 語氣：'+tone+'，但教學內容認真。\n- 必須引用相關 BAFS 概念。'}];
         msgs.push({role:'user', content:'【問題】'+question+'\n【學生答案】'+answer+'\n請評分並給予建議。'});
-        const res = await fetch(API_ENDPOINT, { method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer '+API_KEY}, body:JSON.stringify({model:MODEL, messages:msgs, temperature:0.7, max_tokens:1024}) });
+        const res = await fetch(API_ENDPOINT, { method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer '+API_KEY}, body:JSON.stringify({model:MODEL, messages:msgs, temperature:0.7, max_tokens:2048}) });
         const data = await res.json();
         const el = document.getElementById('gradeResult');
         if (data.error) el.innerHTML = '⚠️ ' + (data.error.message || data.error);
@@ -254,7 +254,7 @@ async function answerQuiz(selected) {
         const msgs = [{role:'system', content:'你係一位香港 BAFS 補習老師，用'+tone+'嘅語氣解釋點解學生答啱/錯。'}];
         const topicCtx = (quizData.code && quizData.code !== 'AI') ? '【課題】'+quizData.code+' - '+quizData.title+'\n' : '';
         msgs.push({role:'user', content: topicCtx+'【題目】'+quizData.q+'\n【選項】\n'+quizData.o.map((o,i)=>labels[i]+'. '+o).join('\n')+'\n【學生揀咗】'+labels[selected]+'\n【正確答案】'+labels[correct]});
-        const res = await fetch(API_ENDPOINT, { method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer '+API_KEY}, body:JSON.stringify({model:MODEL, messages:msgs, temperature:0.7, max_tokens:512}) });
+        const res = await fetch(API_ENDPOINT, { method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer '+API_KEY}, body:JSON.stringify({model:MODEL, messages:msgs, temperature:0.7, max_tokens:2048}) });
         const data = await res.json();
         const el = document.getElementById('quizResult');
         let feedback = '';
@@ -287,7 +287,7 @@ async function generateAIQuiz() {
         const excerpt = picked.substring(0, 1500);
         const msgs = [{role:'system', content:'你係一位香港 BAFS 老師。你嚴格根據筆記內容出題，只會輸出 JSON。'}];
         msgs.push({role:'user', content:'你係一位香港 BAFS 老師。你根據以下筆記內容出一條長題目（非選擇題）。\n\n【筆記內容】\n'+excerpt+'\n\n請用書面語出一條結構題／長題目，要求學生解釋、分析或應用相關概念。題目要根據以上筆記內容用字及概念出，不可出筆記無提及嘅內容。\n\n格式（嚴格 JSON，不可加其他文字）：\n{"q":"題目","topic":"'+code+'"}',});
-        const res = await fetch(API_ENDPOINT, { method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer '+API_KEY}, body:JSON.stringify({model:MODEL, messages:msgs, temperature:0.8, max_tokens:800}) });
+        const res = await fetch(API_ENDPOINT, { method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer '+API_KEY}, body:JSON.stringify({model:MODEL, messages:msgs, temperature:0.8, max_tokens:2048}) });
         const data = await res.json();
         const raw = data.choices?.[0]?.message?.content || '';
         const m = raw.match(/\{[\s\S]*"q"\s*:\s*"[^"]*"[\s\S]*\}/);
@@ -311,7 +311,7 @@ async function submitAIAnswer() {
         const tone = currentMode === 'gentle' ? '溫柔鼓勵' : '寸嘴搞笑';
         const msgs = [{role:'system', content:'你係一位香港 BAFS 補習老師，人稱「地獄救星」。語氣：'+tone+'。你嘅任務係評分（10分滿分）、提供參考答案、指出學生答案中邊句寫得好、邊句可以點改善，以及對比參考答案同學生答案嘅差距。'}];
         msgs.push({role:'user', content:'【筆記內容】\n'+quizData.noteExcerpt+'\n\n【題目】\n'+quizData.q+'\n\n【學生答案】\n'+answer+'\n\n請評分並給予詳細改善建議，指出具體邊句句子可以改善，以及提供參考答案。'});
-        const res = await fetch(API_ENDPOINT, { method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer '+API_KEY}, body:JSON.stringify({model:MODEL, messages:msgs, temperature:0.7, max_tokens:1024}) });
+        const res = await fetch(API_ENDPOINT, { method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer '+API_KEY}, body:JSON.stringify({model:MODEL, messages:msgs, temperature:0.7, max_tokens:2048}) });
         const data = await res.json();
         const el = document.getElementById('quizResult');
         const feedback = data.choices?.[0]?.message?.content || '⚠️ AI 回應格式錯誤';
