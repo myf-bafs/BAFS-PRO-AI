@@ -220,8 +220,8 @@ async function sendQuestion() {
     const historyForApi = recent.slice(0, -1);
     const { context, cited } = searchNotes(q);
     try {
-        const tone = currentMode === 'gentle' ? '你係一個好溫柔體貼嘅香港 BAFS 補習老師，人稱「地獄救星」。語氣：溫柔鼓勵正面。用書面語答題目內容。多啲「加油～」、「慢慢嚟☺️」。' : '你係一個超寸嘴但又好有心教書嘅香港 BAFS 補習老師，人稱「地獄救星」。語氣：超寸嘴！題目內容用書面語，其他用粵語口語（啦囉喂吓下話）。開頭串兩句熱身，中間認真答，最後再串收尾。金句參考：「你上堂有冇聽書㗎？」、「好簡單啫大佬」。';
-        const system = tone + '\n\n守則：\n- 所有 BAFS 知識必須嚴格根據「筆記內容」入面嘅原文，一字不改。\n- 引用課題時用筆記原文作答，唔好自己作。\n- 筆記唔夠可加自己知識，但要標明「網上補充」。\n- 引用課題（topic code），並提醒學生可以 click 課題標籤直接去筆記頁面。\n- 回答中絕對不可出現粗口字眼，要用星星（*）代替。\n- 如果問題同 BAFS 無關，簡單回答幾句就得，最後一定要叫佢溫 BAFS。';
+        const tone = currentMode === 'gentle' ? '你係一個好溫柔體貼嘅香港 BAFS 補習老師，人稱「地獄救星」。語氣：溫柔鼓勵正面。多啲「加油～」、「慢慢嚟☺️」。' : '你係一個超寸嘴但又好有心教書嘅香港 BAFS 補習老師，人稱「地獄救星」。語氣：超寸嘴！開頭串兩句熱身，中間認真答，最後再串收尾。金句參考：「你上堂有冇聽書㗎？」、「好簡單啫大佬」。';
+        const system = tone + '\n\n守則：\n- 盡量用口語化粵語回答，多舉日常生活例子解釋 BAFS 概念。\n- BAFS 知識部分必須根據「筆記內容」入面嘅原文，一字不改。\n- 引用課題時用筆記原文作答，唔好自己作。\n- 筆記唔夠可加自己知識，但要標明「網上補充」。\n- 引用課題（topic code），並提醒學生可以 click 課題標籤直接去筆記頁面。\n- 回答中絕對不可出現粗口字眼，要用星星（*）代替。\n- 如果問題同 BAFS 無關，簡單回答幾句就得，最後一定要叫佢溫 BAFS。';
         let msgs = [{role:'system', content: system}];
         for (const h of historyForApi) { if (['user','assistant'].includes(h.role)) msgs.push({role:h.role, content:h.content}); }
         msgs.push({role:'user', content: context ? '【筆記內容】\n' + context + '\n\n【學生問題】\n' + q : q});
@@ -244,7 +244,7 @@ async function submitGrade() {
     document.getElementById('gradeResult').classList.add('hidden');
     try {
         const tone = currentMode === 'gentle' ? '溫柔鼓勵' : '寸嘴搞笑';
-        const msgs = [{role:'system', content:'你係一位香港 BAFS 補習老師。學生交咗一份功課，你嘅任務係用'+tone+'嘅語氣評分（10分滿分）同給予具體改進建議。\n\n守則：\n- 先俾一個分數（X/10）\n- 指出學生答案嘅優點同缺點\n- 提供一個「建議答案」或「參考要點」\n- 語氣：'+tone+'，但教學內容認真。\n- 必須引用相關 BAFS 概念。'}];
+        const msgs = [{role:'system', content:'你係一位香港 BAFS 補習老師。學生交咗一份功課，你嘅任務係用'+tone+'嘅語氣評分（10分滿分）同給予具體改進建議。\n\n守則：\n- 先俾一個分數（X/10）\n- 指出學生答案嘅優點同缺點\n- 提供一個「建議答案」或「參考要點」\n- 回應時必須使用筆記所提供嘅字眼及詞彙作答，不可自己重新表述或作新詞\n- 語氣：'+tone+'，但教學內容認真。\n- 必須引用相關 BAFS 概念。'}];
         msgs.push({role:'user', content:'【問題】'+question+'\n【學生答案】'+answer+'\n請評分並給予建議。'});
         const res = await fetch(API_ENDPOINT, { method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer '+API_KEY}, body:JSON.stringify({model:MODEL, messages:msgs, temperature:0.7, max_tokens:2048}) });
         const data = await res.json();
@@ -321,7 +321,7 @@ async function generateAIQuiz() {
         const title = hMatch ? hMatch[3] : '';
         const excerpt = picked.substring(0, 1500);
         const msgs = [{role:'system', content:'你係一位香港 BAFS 老師。你嚴格根據筆記內容出題，只會輸出 JSON。'}];
-        msgs.push({role:'user', content:'你係一位香港 BAFS 老師。你根據以下筆記內容出一條長題目（非選擇題）。\n\n【筆記內容】\n'+excerpt+'\n\n請用書面語出一條結構題／長題目，要求學生解釋、分析或應用相關概念。題目要根據以上筆記內容用字及概念出，不可出筆記無提及嘅內容。\n\n格式（嚴格 JSON，不可加其他文字）：\n{"q":"題目","topic":"'+code+'"}',});
+        msgs.push({role:'user', content:'你係一位香港 BAFS 老師。你根據以下筆記內容出一條長題目（非選擇題）。\n\n【筆記內容】\n'+excerpt+'\n\n請用書面語出一條結構題／長題目，要求學生解釋、分析或應用相關概念。注意：只出一題，不要包含任何分題（a/b/c部分）。題目要根據以上筆記內容用字及概念出，不可出筆記無提及嘅內容。\n\n格式（嚴格 JSON，不可加其他文字）：\n{"q":"題目","topic":"'+code+'"}',});
         const res = await fetch(API_ENDPOINT, { method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer '+API_KEY}, body:JSON.stringify({model:MODEL, messages:msgs, temperature:0.8, max_tokens:2048}) });
         const data = await res.json();
         const raw = data.choices?.[0]?.message?.content || '';
@@ -344,8 +344,8 @@ async function submitAIAnswer() {
     document.getElementById('quizResult').classList.add('hidden');
     try {
         const tone = currentMode === 'gentle' ? '溫柔鼓勵' : '寸嘴搞笑';
-        const msgs = [{role:'system', content:'你係一位香港 BAFS 補習老師，人稱「地獄救星」。語氣：'+tone+'。你嘅任務係評分（10分滿分）、提供參考答案、指出學生答案中邊句寫得好、邊句可以點改善，以及對比參考答案同學生答案嘅差距。'}];
-        msgs.push({role:'user', content:'【筆記內容】\n'+quizData.noteExcerpt+'\n\n【題目】\n'+quizData.q+'\n\n【學生答案】\n'+answer+'\n\n請評分並給予詳細改善建議，指出具體邊句句子可以改善，以及提供參考答案。'});
+        const msgs = [{role:'system', content:'你係一位香港 BAFS 補習老師，人稱「地獄救星」。語氣：'+tone+'。你嘅任務係評分（10分滿分）、提供參考答案、指出學生答案中邊句寫得好、邊句可以點改善，以及對比參考答案同學生答案嘅差距。\n\n評分回應格式必須跟以下結構：\n1. Point：指出學生答案嘅重點\n2. 定義：必須引用筆記入面嘅定義字眼\n3. 應用題目（扣題）：將定義套落題目情境，解釋點解啱/錯\n\n回應時必須使用筆記所提供嘅字眼及詞彙作答，不可自己重新表述或作新詞。'}];
+        msgs.push({role:'user', content:'【筆記內容】\n'+quizData.noteExcerpt+'\n\n【題目】\n'+quizData.q+'\n\n【學生答案】\n'+answer+'\n\n請使用筆記字眼，以 Point→定義→應用（扣題） 結構評分，並提供參考答案。'});
         const res = await fetch(API_ENDPOINT, { method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer '+API_KEY}, body:JSON.stringify({model:MODEL, messages:msgs, temperature:0.7, max_tokens:2048}) });
         const data = await res.json();
         const el = document.getElementById('quizResult');
@@ -422,7 +422,7 @@ async function generateImage() {
         const m = NOTES_MD.match(re);
         if (m) notesCtx = m[0].replace(/<[^>]*>/g, '').substring(0, 600);
 
-        const imgPrompt = 'Generate a professional educational infographic in Traditional Chinese about BAFS topic: [' + topic.code + '] ' + topic.title + '. ' + (notesCtx ? 'Key content: ' + notesCtx + '. ' : '') + (prompt ? 'User request: ' + prompt + '. ' : '') + 'Style: clean, modern, colorful, suitable for Hong Kong secondary school students. Use deep blue (#1E40AF) and orange (#F59E0B) color scheme. Text in Traditional Chinese. Output as a clear infographic with headings, bullet points, and visual hierarchy.';
+        const imgPrompt = 'Generate a fun comic-style educational infographic in Traditional Chinese about BAFS topic: [' + topic.code + '] ' + topic.title + '. ' + (notesCtx ? 'Key content: ' + notesCtx + '. ' : '') + (prompt ? 'User request: ' + prompt + '. ' : '') + 'Style: comic / cartoon style,简洁少字, fun and engaging, suitable for Hong Kong secondary school students. Use deep blue (#1E40AF) and orange (#F59E0B) color scheme with playful illustrations. Text in Traditional Chinese, keep text minimal. Output as a clear infographic with simple headings and fun visuals.';
 
         const res = await fetch(IMAGE_API_ENDPOINT, { method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer '+API_KEY}, body:JSON.stringify({model:IMAGE_MODEL, prompt:imgPrompt, n:1, size:'1024x1024'}) });
         const data = await res.json();
