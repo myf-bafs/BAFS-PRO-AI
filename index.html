@@ -49,6 +49,7 @@ body{font-family:'Noto Sans TC',sans-serif;background:#f8fafc}
         <button onclick="switchTab('chat')" id="tabChat" class="tab-btn flex-1 py-3 text-center text-xs md:text-sm font-black transition border-b-2 border-transparent text-slate-400 hover:text-indigo-600">💬 問問題</button>
         <button onclick="switchTab('grade')" id="tabGrade" class="tab-btn flex-1 py-3 text-center text-xs md:text-sm font-black transition border-b-2 border-transparent text-slate-400 hover:text-indigo-600">📝 功課批改</button>
         <button onclick="switchTab('quiz')" id="tabQuiz" class="tab-btn flex-1 py-3 text-center text-xs md:text-sm font-black transition border-b-2 border-transparent text-slate-400 hover:text-indigo-600">🎲 隨機練習</button>
+        <button onclick="switchTab('image')" id="tabImage" class="tab-btn flex-1 py-3 text-center text-xs md:text-sm font-black transition border-b-2 border-transparent text-slate-400 hover:text-indigo-600">🖼️ 生成圖像</button>
     </div>
 </div>
 <div id="tabChatContent" class="block">
@@ -90,6 +91,33 @@ body{font-family:'Noto Sans TC',sans-serif;background:#f8fafc}
         </div>
     </div>
 </div>
+
+<!-- ============ TAB 4: Image Generation ============ -->
+<div id="tabImageContent" class="hidden">
+    <div class="max-w-3xl mx-auto px-3 md:px-4 py-4" style="min-height:calc(100vh - 140px)">
+        <div class="bg-white dark:bg-slate-800 rounded-2xl p-5 md:p-6 shadow-sm border dark:border-slate-700">
+            <h3 class="font-black text-base mb-1">🖼️ 生成資訊圖</h3>
+            <p class="text-xs text-slate-400 mb-4">揀個課題，AI 幫你將筆記內容生成資訊圖（infographic）</p>
+            <div class="space-y-3">
+                <div>
+                    <label class="text-xs font-bold text-slate-500 mb-1 block">揀選課題</label>
+                    <select id="imageTopic" class="w-full px-3 py-2.5 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm outline-none focus:ring-2 focus:ring-indigo-500 transition">
+                        <option value="">— 請選擇課題 —</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="text-xs font-bold text-slate-500 mb-1 block">額外指示（可選）</label>
+                    <textarea id="imagePrompt" rows="2" class="w-full px-3 py-2.5 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm outline-none focus:ring-2 focus:ring-indigo-500 transition" placeholder="例如：重點整理、流程圖、比較表格……"></textarea>
+                </div>
+                <button onclick="generateImage()" id="imageBtn" class="w-full bg-gradient-to-r from-cyan-600 to-indigo-600 text-white font-black py-3 rounded-xl hover:from-cyan-700 hover:to-indigo-700 transition shadow-md disabled:opacity-50">🎨 生成資訊圖</button>
+            </div>
+            <div id="imageResult" class="hidden mt-4"></div>
+            <div id="imageLoading" class="hidden items-center gap-2 px-4 py-3 mt-2"><span class="typing-dot"></span><span class="typing-dot"></span><span class="typing-dot"></span><span class="text-xs text-slate-400 ml-2">生成中...（約需 15-30 秒）</span></div>
+            <div id="imageHistory" class="mt-4 space-y-3"></div>
+        </div>
+    </div>
+</div>
+
 <script src="notes_data.js"></script>
 <script src="quiz_data.js"></script>
 <script>
@@ -104,9 +132,11 @@ function switchTab(tab) {
     document.getElementById('tabChatContent').className = 'hidden';
     document.getElementById('tabGradeContent').className = 'hidden';
     document.getElementById('tabQuizContent').className = 'hidden';
+    document.getElementById('tabImageContent').className = 'hidden';
     if (tab === 'chat') { document.getElementById('tabChat').classList.add('border-indigo-500','text-indigo-600','dark:text-indigo-400'); document.getElementById('tabChatContent').className = 'block'; setTimeout(() => document.getElementById('questionInput')?.focus(), 100); }
     else if (tab === 'grade') { document.getElementById('tabGrade').classList.add('border-indigo-500','text-indigo-600','dark:text-indigo-400'); document.getElementById('tabGradeContent').className = 'block'; }
     else if (tab === 'quiz') { document.getElementById('tabQuiz').classList.add('border-indigo-500','text-indigo-600','dark:text-indigo-400'); document.getElementById('tabQuizContent').className = 'block'; if (!quizData && !useAIQuiz) loadRandomQuiz(); }
+    else if (tab === 'image') { document.getElementById('tabImage').classList.add('border-indigo-500','text-indigo-600','dark:text-indigo-400'); document.getElementById('tabImageContent').className = 'block'; populateImageTopics(); }
 }
 function loadMode() { try { const s = localStorage.getItem('bafs_ai_mode'); if (s === 'gentle') currentMode = 'gentle'; } catch(e) {} updateModeBtn(); }
 function updateModeBtn() {
@@ -344,6 +374,78 @@ function closeNotesModal() {
     document.getElementById('notesModal').classList.add('hidden');
     document.getElementById('notesModal').classList.remove('flex');
 }
+
+// ===== Image Generation =====
+const IMAGE_API_ENDPOINT = 'https://apihub.agnes-ai.com/v1/images/generations';
+const IMAGE_MODEL = 'agnes-image-2-0-flash';
+let imageHistory = [];
+
+function populateImageTopics() {
+    const sel = document.getElementById('imageTopic');
+    if (sel.options.length > 1) return;
+    for (const tid in QUIZ_DATA) {
+        const t = QUIZ_DATA[tid];
+        const opt = document.createElement('option');
+        opt.value = tid;
+        opt.textContent = '[' + t.code + '] ' + t.title;
+        sel.appendChild(opt);
+    }
+}
+function loadImageHistory() {
+    try { const s = localStorage.getItem('bafs_ai_images'); if (s) imageHistory = JSON.parse(s); } catch(e) {}
+    renderImageHistory();
+}
+function saveImageHistory() {
+    try { localStorage.setItem('bafs_ai_images', JSON.stringify(imageHistory.slice(-20))); } catch(e) {}
+    renderImageHistory();
+}
+function renderImageHistory() {
+    const container = document.getElementById('imageHistory');
+    if (imageHistory.length === 0) { container.innerHTML = ''; return; }
+    let h = '<h4 class="font-bold text-xs text-slate-400 mb-2">📜 已生成嘅圖</h4>';
+    imageHistory.slice().reverse().forEach(item => {
+        h += '<div class="bg-slate-50 dark:bg-slate-900/50 rounded-xl p-3 border dark:border-slate-700 mb-2"><div class="flex items-center gap-2 mb-2"><span class="text-[10px] font-black uppercase bg-indigo-600 text-white px-2 py-0.5 rounded-full">' + escapeHtml(item.topic_code||'') + '</span><span class="text-xs text-slate-500">' + escapeHtml(item.topic_title||'') + '</span></div><img src="' + escapeHtml(item.url) + '" class="w-full rounded-lg cursor-pointer hover:opacity-90 transition" onclick="window.open(this.src,\'_blank\')" loading="lazy" alt="Infographic"></div>';
+    });
+    container.innerHTML = h;
+}
+async function generateImage() {
+    const topicId = document.getElementById('imageTopic').value;
+    const prompt = document.getElementById('imagePrompt').value.trim();
+    if (!topicId) { alert('請揀一個課題'); return; }
+    document.getElementById('imageBtn').disabled = true;
+    document.getElementById('imageLoading').classList.remove('hidden'); document.getElementById('imageLoading').classList.add('flex');
+    document.getElementById('imageResult').classList.add('hidden');
+    const topic = QUIZ_DATA[topicId];
+    try {
+        let notesCtx = '';
+        const re = new RegExp('### Topic ' + topicId + ':[\\s\\S]*?(?=\\n### Topic \\d+:|$)');
+        const m = NOTES_MD.match(re);
+        if (m) notesCtx = m[0].replace(/<[^>]*>/g, '').substring(0, 600);
+
+        const imgPrompt = 'Generate a professional educational infographic in Traditional Chinese about BAFS topic: [' + topic.code + '] ' + topic.title + '. ' + (notesCtx ? 'Key content: ' + notesCtx + '. ' : '') + (prompt ? 'User request: ' + prompt + '. ' : '') + 'Style: clean, modern, colorful, suitable for Hong Kong secondary school students. Use deep blue (#1E40AF) and orange (#F59E0B) color scheme. Text in Traditional Chinese. Output as a clear infographic with headings, bullet points, and visual hierarchy.';
+
+        const res = await fetch(IMAGE_API_ENDPOINT, { method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer '+API_KEY}, body:JSON.stringify({model:IMAGE_MODEL, prompt:imgPrompt, n:1, size:'1024x1024'}) });
+        const data = await res.json();
+        const el = document.getElementById('imageResult');
+        if (data.error) {
+            el.innerHTML = '<div class="p-4 rounded-xl bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-sm text-red-600 dark:text-red-400">⚠️ ' + (data.error.message || data.error) + '</div>';
+        } else if (data.data?.[0]?.url) {
+            const imgUrl = data.data[0].url;
+            el.innerHTML = '<div class="bg-slate-50 dark:bg-slate-900/50 rounded-xl p-3 border dark:border-slate-700"><div class="flex items-center gap-2 mb-2"><span class="text-[10px] font-black uppercase bg-indigo-600 text-white px-2 py-0.5 rounded-full">' + escapeHtml(topic.code||'') + '</span><span class="text-xs text-slate-500">' + escapeHtml(topic.title||'') + '</span></div><img src="' + escapeHtml(imgUrl) + '" class="w-full rounded-lg cursor-pointer hover:opacity-90 transition" onclick="window.open(this.src,\'_blank\')" loading="lazy" alt="Generated infographic"><a href="' + escapeHtml(imgUrl) + '" target="_blank" class="inline-block mt-2 text-xs text-indigo-600 hover:text-indigo-800 font-bold">🔗 打開原圖</a></div>';
+            imageHistory.push({url: imgUrl, topic_code: topic.code, topic_title: topic.title, time: Date.now()});
+            saveImageHistory();
+        } else {
+            el.innerHTML = '<div class="p-4 rounded-xl bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-sm text-red-600 dark:text-red-400">⚠️ 圖像生成失敗</div>';
+        }
+        el.classList.remove('hidden');
+    } catch(e) {
+        document.getElementById('imageResult').innerHTML = '<div class="p-4 rounded-xl bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-sm text-red-600 dark:text-red-400">⚠️ 網絡錯誤：' + e.message + '</div>';
+        document.getElementById('imageResult').classList.remove('hidden');
+    }
+    document.getElementById('imageLoading').classList.add('hidden'); document.getElementById('imageLoading').classList.remove('flex');
+    document.getElementById('imageBtn').disabled = false;
+}
+loadImageHistory();
 loadMode(); loadHistory(); restoreMessages();
 </script>
 
