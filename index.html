@@ -50,6 +50,7 @@ body{font-family:'Noto Sans TC',sans-serif;background:#f8fafc}
         <button onclick="switchTab('grade')" id="tabGrade" class="tab-btn flex-1 py-3 text-center text-xs md:text-sm font-black transition border-b-2 border-transparent text-slate-400 hover:text-indigo-600">📝 功課批改</button>
         <button onclick="switchTab('quiz')" id="tabQuiz" class="tab-btn flex-1 py-3 text-center text-xs md:text-sm font-black transition border-b-2 border-transparent text-slate-400 hover:text-indigo-600">🎲 隨機練習</button>
         <button onclick="switchTab('image')" id="tabImage" class="tab-btn flex-1 py-3 text-center text-xs md:text-sm font-black transition border-b-2 border-transparent text-slate-400 hover:text-indigo-600">🖼️ 生成圖像</button>
+        <button onclick="switchTab('video')" id="tabVideo" class="tab-btn flex-1 py-3 text-center text-xs md:text-sm font-black transition border-b-2 border-transparent text-slate-400 hover:text-indigo-600">🎬 生成影片</button>
     </div>
 </div>
 <div id="tabChatContent" class="block">
@@ -118,6 +119,42 @@ body{font-family:'Noto Sans TC',sans-serif;background:#f8fafc}
     </div>
 </div>
 
+<!-- ============ TAB 5: Video Generation ============ -->
+<div id="tabVideoContent" class="hidden">
+    <div class="max-w-3xl mx-auto px-3 md:px-4 py-4" style="min-height:calc(100vh - 140px)">
+        <div class="bg-white dark:bg-slate-800 rounded-2xl p-5 md:p-6 shadow-sm border dark:border-slate-700">
+            <h3 class="font-black text-base mb-1">🎬 生成影片</h3>
+            <p class="text-xs text-slate-400 mb-4">揀個課題，AI 幫你將筆記內容生成短片（需時 1-3 分鐘）</p>
+            <div class="space-y-3">
+                <div>
+                    <label class="text-xs font-bold text-slate-500 mb-1 block">揀選課題</label>
+                    <select id="videoTopic" class="w-full px-3 py-2.5 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm outline-none focus:ring-2 focus:ring-indigo-500 transition">
+                        <option value="">— 請選擇課題 —</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="text-xs font-bold text-slate-500 mb-1 block">額外指示（可選）</label>
+                    <textarea id="videoPrompt" rows="2" class="w-full px-3 py-2.5 rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-700 text-sm outline-none focus:ring-2 focus:ring-indigo-500 transition" placeholder="例如：動畫風格、重點展示……"></textarea>
+                </div>
+                <div class="flex items-center gap-4">
+                    <div class="flex-1">
+                        <label class="text-xs font-bold text-slate-500 mb-1 block">片長：<span id="videoDurationLabel">5</span> 秒</label>
+                        <input type="range" id="videoDuration" min="5" max="15" value="5" step="5" class="w-full accent-indigo-600" oninput="document.getElementById('videoDurationLabel').textContent=this.value">
+                    </div>
+                </div>
+                <button onclick="generateVideo()" id="videoBtn" class="w-full bg-gradient-to-r from-purple-600 to-pink-600 text-white font-black py-3 rounded-xl hover:from-purple-700 hover:to-pink-700 transition shadow-md disabled:opacity-50">🎬 生成影片</button>
+            </div>
+            <div id="videoResult" class="hidden mt-4"></div>
+            <div id="videoLoading" class="hidden flex-col items-center gap-3 px-4 py-6 mt-2">
+                <div class="flex items-center gap-2"><span class="typing-dot"></span><span class="typing-dot"></span><span class="typing-dot"></span></div>
+                <p id="videoLoadingText" class="text-xs text-slate-400">生成中...（約需 1-3 分鐘）</p>
+                <div class="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-2 max-w-xs"><div id="videoProgress" class="bg-indigo-600 h-2 rounded-full transition-all duration-500" style="width:0%"></div></div>
+            </div>
+            <div id="videoHistory" class="mt-4 space-y-3"></div>
+        </div>
+    </div>
+</div>
+
 <script src="notes_data.js"></script>
 <script src="quiz_data.js"></script>
 <script>
@@ -133,10 +170,12 @@ function switchTab(tab) {
     document.getElementById('tabGradeContent').className = 'hidden';
     document.getElementById('tabQuizContent').className = 'hidden';
     document.getElementById('tabImageContent').className = 'hidden';
+    document.getElementById('tabVideoContent').className = 'hidden';
     if (tab === 'chat') { document.getElementById('tabChat').classList.add('border-indigo-500','text-indigo-600','dark:text-indigo-400'); document.getElementById('tabChatContent').className = 'block'; setTimeout(() => document.getElementById('questionInput')?.focus(), 100); }
     else if (tab === 'grade') { document.getElementById('tabGrade').classList.add('border-indigo-500','text-indigo-600','dark:text-indigo-400'); document.getElementById('tabGradeContent').className = 'block'; }
     else if (tab === 'quiz') { document.getElementById('tabQuiz').classList.add('border-indigo-500','text-indigo-600','dark:text-indigo-400'); document.getElementById('tabQuizContent').className = 'block'; if (!quizData && !useAIQuiz) loadRandomQuiz(); }
     else if (tab === 'image') { document.getElementById('tabImage').classList.add('border-indigo-500','text-indigo-600','dark:text-indigo-400'); document.getElementById('tabImageContent').className = 'block'; populateImageTopics(); }
+    else if (tab === 'video') { document.getElementById('tabVideo').classList.add('border-indigo-500','text-indigo-600','dark:text-indigo-400'); document.getElementById('tabVideoContent').className = 'block'; populateVideoTopics(); }
 }
 function loadMode() { try { const s = localStorage.getItem('bafs_ai_mode'); if (s === 'gentle') currentMode = 'gentle'; } catch(e) {} updateModeBtn(); }
 function updateModeBtn() {
@@ -446,6 +485,106 @@ async function generateImage() {
     document.getElementById('imageBtn').disabled = false;
 }
 loadImageHistory();
+
+// ===== Video Generation =====
+const VIDEO_API_ENDPOINT = 'https://apihub.agnes-ai.com/v1/video/generations';
+const VIDEO_MODEL = 'agnes-video-v2.0';
+let videoHistory = [];
+
+function populateVideoTopics() {
+    const sel = document.getElementById('videoTopic');
+    if (sel.options.length > 1) return;
+    for (const tid in QUIZ_DATA) {
+        const t = QUIZ_DATA[tid];
+        const opt = document.createElement('option');
+        opt.value = tid;
+        opt.textContent = '[' + t.code + '] ' + t.title;
+        sel.appendChild(opt);
+    }
+}
+function loadVideoHistory() {
+    try { const s = localStorage.getItem('bafs_ai_videos'); if (s) videoHistory = JSON.parse(s); } catch(e) {}
+    renderVideoHistory();
+}
+function saveVideoHistory() {
+    try { localStorage.setItem('bafs_ai_videos', JSON.stringify(videoHistory.slice(-10))); } catch(e) {}
+    renderVideoHistory();
+}
+function renderVideoHistory() {
+    const container = document.getElementById('videoHistory');
+    if (videoHistory.length === 0) { container.innerHTML = ''; return; }
+    let h = '<h4 class="font-bold text-xs text-slate-400 mb-2">📜 已生成嘅片</h4>';
+    videoHistory.slice().reverse().forEach(item => {
+        h += '<div class="bg-slate-50 dark:bg-slate-900/50 rounded-xl p-3 border dark:border-slate-700 mb-2"><div class="flex items-center gap-2 mb-2"><span class="text-[10px] font-black uppercase bg-indigo-600 text-white px-2 py-0.5 rounded-full">' + escapeHtml(item.topic_code||'') + '</span><span class="text-xs text-slate-500">' + escapeHtml(item.topic_title||'') + '</span></div><video src="' + escapeHtml(item.url) + '" controls class="w-full rounded-lg" preload="metadata"></video></div>';
+    });
+    container.innerHTML = h;
+}
+async function generateVideo() {
+    const topicId = document.getElementById('videoTopic').value;
+    const prompt = document.getElementById('videoPrompt').value.trim();
+    const duration = parseInt(document.getElementById('videoDuration').value) || 5;
+    if (!topicId) { alert('請揀一個課題'); return; }
+    const topic = QUIZ_DATA[topicId];
+    document.getElementById('videoBtn').disabled = true;
+    document.getElementById('videoLoading').classList.remove('hidden'); document.getElementById('videoLoading').classList.add('flex');
+    document.getElementById('videoResult').classList.add('hidden');
+    document.getElementById('videoProgress').style.width = '0%';
+    document.getElementById('videoLoadingText').textContent = '⏳  submitting...';
+    try {
+        let notesCtx = '';
+        const re = new RegExp('### Topic ' + topicId + ':[\\s\\S]*?(?=\\n### Topic \\d+:|$)');
+        const m = NOTES_MD.match(re);
+        if (m) notesCtx = m[0].replace(/<[^>]*>/g, '').substring(0, 500);
+
+        const videoPrompt = 'Create an educational animation in Traditional Chinese about BAFS topic: [' + topic.code + '] ' + topic.title + '. ' + (notesCtx ? 'Key content: ' + notesCtx + '. ' : '') + (prompt ? 'Style/ focus: ' + prompt + '. ' : '') + 'Make it clear, engaging, suitable for Hong Kong secondary school students. Use a clean educational style with animated text and visuals.';
+
+        const res = await fetch(VIDEO_API_ENDPOINT, { method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer '+API_KEY}, body:JSON.stringify({model:VIDEO_MODEL, prompt:videoPrompt, duration:duration}) });
+        const data = await res.json();
+        const taskId = data.task_id;
+        if (!taskId) { throw new Error(data.message || 'Failed to start video generation'); }
+
+        document.getElementById('videoLoadingText').textContent = '⏳ generating... (1-3 mins)';
+        let attempts = 0;
+        const maxAttempts = 60;
+        let videoUrl = '';
+
+        while (attempts < maxAttempts) {
+            await new Promise(r => setTimeout(r, 5000));
+            attempts++;
+            document.getElementById('videoProgress').style.width = Math.min(attempts * 5, 90) + '%';
+            try {
+                const pollRes = await fetch(VIDEO_API_ENDPOINT + '/' + taskId, { headers:{'Authorization':'Bearer '+API_KEY} });
+                const pollData = await pollRes.json();
+                const status = pollData.data?.status || pollData.status || '';
+                document.getElementById('videoLoadingText').textContent = '⏳ ' + status + '... (' + Math.round(attempts*5) + 's)';
+                if (status === 'SUCCESS' || status === 'done' || status === 'completed') {
+                    videoUrl = pollData.data?.data?.url || pollData.data?.video_url || pollData.video_url || '';
+                    if (videoUrl) break;
+                } else if (status === 'FAILED' || status === 'failed') {
+                    throw new Error(pollData.data?.fail_reason || 'Video generation failed');
+                }
+            } catch(e) { if (attempts > 3) throw e; }
+        }
+
+        const el = document.getElementById('videoResult');
+        if (videoUrl) {
+            el.innerHTML = '<div class="bg-slate-50 dark:bg-slate-900/50 rounded-xl p-3 border dark:border-slate-700"><div class="flex items-center gap-2 mb-2"><span class="text-[10px] font-black uppercase bg-indigo-600 text-white px-2 py-0.5 rounded-full">' + escapeHtml(topic.code||'') + '</span><span class="text-xs text-slate-500">' + escapeHtml(topic.title||'') + '</span></div><video src="' + escapeHtml(videoUrl) + '" controls class="w-full rounded-lg" preload="metadata"></video><a href="' + escapeHtml(videoUrl) + '" target="_blank" class="inline-block mt-2 text-xs text-indigo-600 hover:text-indigo-800 font-bold">🔗 打開原片</a></div>';
+            videoHistory.push({url: videoUrl, topic_code: topic.code, topic_title: topic.title, time: Date.now()});
+            saveVideoHistory();
+            document.getElementById('videoProgress').style.width = '100%';
+            document.getElementById('videoLoadingText').textContent = '✅ done!';
+        } else {
+            el.innerHTML = '<div class="p-4 rounded-xl bg-red-50 dark:bg-red-900/20 border text-sm text-red-600 dark:text-red-400">⚠️ 生成超時，請稍後再試</div>';
+        }
+        el.classList.remove('hidden');
+    } catch(e) {
+        document.getElementById('videoResult').innerHTML = '<div class="p-4 rounded-xl bg-red-50 dark:bg-red-900/20 border text-sm text-red-600 dark:text-red-400">⚠️ ' + escapeHtml(e.message || 'Error') + '</div>';
+        document.getElementById('videoResult').classList.remove('hidden');
+    }
+    document.getElementById('videoLoading').classList.add('hidden'); document.getElementById('videoLoading').classList.remove('flex');
+    document.getElementById('videoBtn').disabled = false;
+}
+loadVideoHistory();
 loadMode(); loadHistory(); restoreMessages();
 </script>
 
