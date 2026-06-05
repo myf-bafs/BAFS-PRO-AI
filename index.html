@@ -555,12 +555,12 @@ async function generateVideo() {
             try {
                 const pollRes = await fetch(VIDEO_API_ENDPOINT + '/' + taskId, { headers:{'Authorization':'Bearer '+API_KEY} });
                 const pollData = await pollRes.json();
-                const status = pollData.data?.status || pollData.status || '';
+                const status = pollData.data?.status || '';
                 document.getElementById('videoLoadingText').textContent = '⏳ ' + status + '... (' + Math.round(attempts*5) + 's)';
-                if (status === 'SUCCESS' || status === 'done' || status === 'completed') {
-                    videoUrl = pollData.data?.data?.url || pollData.data?.video_url || pollData.video_url || '';
+                if (status === 'SUCCESS') {
+                    videoUrl = pollData.data?.result_url || pollData.data?.data?.remixed_from_video_id || '';
                     if (videoUrl) break;
-                } else if (status === 'FAILED' || status === 'failed') {
+                } else if (status === 'FAILED') {
                     throw new Error(pollData.data?.fail_reason || 'Video generation failed');
                 }
             } catch(e) { if (attempts > 3) throw e; }
