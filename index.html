@@ -422,7 +422,7 @@ async function generateImage() {
         const m = NOTES_MD.match(re);
         if (m) notesCtx = m[0].replace(/<[^>]*>/g, '').substring(0, 600);
 
-        const imgPrompt = 'Generate a fun comic-style educational infographic in Traditional Chinese about BAFS topic: [' + topic.code + '] ' + topic.title + '. ' + (notesCtx ? 'Key content: ' + notesCtx + '. ' : '') + (prompt ? 'User request: ' + prompt + '. ' : '') + 'Style: comic / cartoon style,简洁少字, fun and engaging, suitable for Hong Kong secondary school students. Use deep blue (#1E40AF) and orange (#F59E0B) color scheme with playful illustrations. Text in Traditional Chinese, keep text minimal. Output as a clear infographic with simple headings and fun visuals.';
+        const imgPrompt = 'Generate a fun multi-panel comic strip in Traditional Chinese about BAFS topic: [' + topic.code + '] ' + topic.title + '. ' + (notesCtx ? 'Key content: ' + notesCtx + '. ' : '') + (prompt ? 'User request: ' + prompt + '. ' : '') + 'Style: comic / cartoon style with 4-6 panels, each panel has a simple visual with minimal text (just key words or short phrases in Traditional Chinese). Use a cute, fun art style suitable for Hong Kong secondary school students. Use deep blue (#1E40AF) and orange (#F59E0B) color scheme. Make it engaging and easy to understand through visuals rather than text.';
 
         const res = await fetch(IMAGE_API_ENDPOINT, { method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer '+API_KEY}, body:JSON.stringify({model:IMAGE_MODEL, prompt:imgPrompt, n:1, size:'1024x1024'}) });
         const data = await res.json();
