@@ -487,7 +487,7 @@ async function generateImage() {
 loadImageHistory();
 
 // ===== Video Generation =====
-const VIDEO_API_ENDPOINT = 'https://apihub.agnes-ai.com/v1/video/generations';
+const VIDEO_API_ENDPOINT = 'https://apihub.agnes-ai.com/v1/videos';
 const VIDEO_MODEL = 'agnes-video-v2.0';
 let videoHistory = [];
 
@@ -538,32 +538,49 @@ async function generateVideo() {
 
         const videoPrompt = 'Create an educational animation in Traditional Chinese about BAFS topic: [' + topic.code + '] ' + topic.title + '. ' + (notesCtx ? 'Key content: ' + notesCtx + '. ' : '') + (prompt ? 'Style/ focus: ' + prompt + '. ' : '') + 'Make it clear, engaging, suitable for Hong Kong secondary school students. Use a clean educational style with animated text and visuals.';
 
-        const res = await fetch(VIDEO_API_ENDPOINT, { method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer '+API_KEY}, body:JSON.stringify({model:VIDEO_MODEL, prompt:videoPrompt, duration:duration}) });
+        console.log('[VIDEO] POSTing to', VIDEO_API_ENDPOINT);
+        const numFramesMap = {5: 121, 10: 241, 15: 361};
+        const numFrames = numFramesMap[duration] || 121;
+        const res = await fetch(VIDEO_API_ENDPOINT, { method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer '+API_KEY}, body:JSON.stringify({model:VIDEO_MODEL, prompt:videoPrompt, height:768, width:1152, num_frames:numFrames, frame_rate:24}) });
         const data = await res.json();
-        const taskId = data.task_id;
-        if (!taskId) { throw new Error(data.message || 'Failed to start video generation'); }
+        console.log('[VIDEO] POST response:', JSON.stringify(data));
+        const statusUrl = data.status_url || data.data?.status_url || '';
+        const taskId = statusUrl.split('/').pop() || data.task_id || data.id || '';
+        document.getElementById('videoLoadingText').textContent = '⏳ taskId=' + taskId;
+        if (!statusUrl && !taskId) { throw new Error(data.message || JSON.stringify(data) || 'Failed to start video generation'); }
 
         document.getElementById('videoLoadingText').textContent = '⏳ generating... (1-3 mins)';
         let attempts = 0;
         const maxAttempts = 60;
         let videoUrl = '';
+        const pollUrl = statusUrl || (VIDEO_API_ENDPOINT + '/' + taskId);
 
         while (attempts < maxAttempts) {
             await new Promise(r => setTimeout(r, 5000));
             attempts++;
             document.getElementById('videoProgress').style.width = Math.min(attempts * 5, 90) + '%';
             try {
-                const pollRes = await fetch(VIDEO_API_ENDPOINT + '/' + taskId, { headers:{'Authorization':'Bearer '+API_KEY} });
+                console.log('[VIDEO] polling', pollUrl);
+                const pollRes = await fetch(pollUrl, { headers:{'Authorization':'Bearer '+API_KEY} });
                 const pollData = await pollRes.json();
-                const status = pollData.data?.status || '';
+                console.log('[VIDEO] poll response:', JSON.stringify(pollData));
+                const status = pollData.status || pollData.data?.status || '';
                 document.getElementById('videoLoadingText').textContent = '⏳ ' + status + '... (' + Math.round(attempts*5) + 's)';
-                if (status === 'SUCCESS') {
-                    videoUrl = pollData.data?.result_url || pollData.data?.data?.remixed_from_video_id || '';
+                if (status === 'SUCCESS' || status === 'succeeded' || status === 'completed') {
+                    const resultUrl = pollData.response_url || pollData.data?.response_url || '';
+                    if (resultUrl) {
+                        const resultRes = await fetch(resultUrl, { headers:{'Authorization':'Bearer '+API_KEY} });
+                        const resultData = await resultRes.json();
+                        console.log('[VIDEO] result response:', JSON.stringify(resultData));
+                        videoUrl = resultData.data?.url || resultData.url || resultData.data?.result_url || resultData.result_url || '';
+                    }
+                    videoUrl = videoUrl || pollData.data?.url || pollData.url || pollData.data?.result_url || pollData.result_url || '';
+                    console.log('[VIDEO] got videoUrl:', videoUrl);
                     if (videoUrl) break;
-                } else if (status === 'FAILED') {
-                    throw new Error(pollData.data?.fail_reason || 'Video generation failed');
+                } else if (status === 'FAILED' || status === 'failed') {
+                    throw new Error(pollData.fail_reason || pollData.data?.fail_reason || 'Video generation failed');
                 }
-            } catch(e) { if (attempts > 3) throw e; }
+            } catch(e) { console.error('[VIDEO] poll error:', e); if (attempts > 3) throw e; }
         }
 
         const el = document.getElementById('videoResult');
