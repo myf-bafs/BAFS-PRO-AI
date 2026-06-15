@@ -64,7 +64,7 @@ body{font-family:'Noto Sans TC',sans-serif;background:#f8fafc}
             <button onclick="newChat()" class="px-3 py-3 rounded-xl bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 font-bold text-xs hover:bg-slate-300 transition flex-shrink-0">🆕</button>
             <button id="sendBtn" onclick="sendQuestion()" class="px-5 py-3 rounded-xl bg-indigo-600 text-white font-black text-sm hover:bg-indigo-700 transition shadow-md disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5">傳送 ➤</button>
         </div>
-        <p class="text-center text-[10px] text-slate-400 mt-1.5">基於筆記內容回答 · 由 Agnes AI 提供</p>
+        <p class="text-center text-[10px] text-slate-400 mt-1.5">基於筆記內容回答 · 由 GLM 提供</p>
     </div>
 </div>
 <div id="tabGradeContent" class="hidden">
@@ -158,9 +158,9 @@ body{font-family:'Noto Sans TC',sans-serif;background:#f8fafc}
 <script src="notes_data.js"></script>
 <script src="quiz_data.js"></script>
 <script>
-const API_KEY = 'sk-UdCwJXcqC6kPDkHCTp1t2u7H2L5raegVHOY26EUvebB7rC4v';
-const API_ENDPOINT = 'https://apihub.agnes-ai.com/v1/chat/completions';
-const MODEL = 'agnes-2.0-flash';
+const API_KEY = 'eeadc107777b44be96a529da6f3073aa.MMjiigBxXkike7Ew';
+const API_ENDPOINT = 'https://open.bigmodel.cn/api/paas/v4/chat/completions';
+const MODEL = 'glm-4.7-flash';
 let loading = false, chatHistory = [], currentMode = 'savage', currentTab = 'chat', quizData = null, useAIQuiz = false;
 
 function switchTab(tab) {
