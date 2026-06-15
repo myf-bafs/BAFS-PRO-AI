@@ -205,8 +205,10 @@ function newChat() {
 var citedMap = {};
 function escapeHtml(text) { const d = document.createElement('div'); d.textContent = text; return d.innerHTML; }
 function markedContent(text) {
+    text = escapeHtml(text);
     text = text.replace(/\[([A-Z0-9.-]+)\]/g, function(m, c) { var id = citedMap[c]; return id ? '<a href="javascript:void(0)" onclick="showNotesModal('+id+')" class="topic-tag hover:bg-indigo-200 dark:hover:bg-indigo-800 transition">'+c+'</a>' : '<span class="topic-tag">'+c+'</span>'; });
-    return '<p class="mt-0 leading-relaxed whitespace-pre-wrap">' + text + '</p>';
+    text = text.replace(/\n/g, '<br>');
+    return '<p class="mt-0 leading-relaxed">' + text + '</p>';
 }
 function askSample(q) { document.getElementById('questionInput').value = q; sendQuestion(); }
 function searchNotes(question) {
@@ -262,15 +264,15 @@ async function sendQuestion() {
         const box = document.getElementById('chatBox');
         const aiDiv = document.createElement('div');
         aiDiv.className = 'msg-ai self-start px-4 py-3.5 shadow-sm';
-        aiDiv.innerHTML = '<div class="flex items-center gap-2 mb-1.5"><span class="text-xl">🤖</span><span class="font-black text-sm text-indigo-600 dark:text-indigo-400">BAFS 地獄救星</span></div><div id="streamContent" class="text-sm text-slate-700 dark:text-slate-200 leading-relaxed"></div>';
+        aiDiv.innerHTML = '<div class="flex items-center gap-2 mb-1.5"><span class="text-xl">🤖</span><span class="font-black text-sm text-indigo-600 dark:text-indigo-400">BAFS 地獄救星</span></div><div class="stream-content text-sm text-slate-700 dark:text-slate-200 leading-relaxed"></div>';
         box.appendChild(aiDiv);
         document.getElementById('chatLoading').classList.add('hidden'); document.getElementById('chatLoading').classList.remove('flex');
 
         const res = await fetch(API_ENDPOINT, { method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer '+API_KEY}, body:JSON.stringify({model:MODEL, messages:msgs, temperature:0.9, max_tokens:2048, stream:true}) });
-        if (!res.ok) { const err = await res.json().catch(()=>({})); throw new Error(err.error?.message || res.statusText); }
+        if (!res.ok) { aiDiv.remove(); const err = await res.json().catch(()=>({})); throw new Error(err.error?.message || res.statusText); }
         const reader = res.body.getReader();
         const decoder = new TextDecoder();
-        const contentDiv = document.getElementById('streamContent');
+        const contentDiv = aiDiv.querySelector('.stream-content');
         let fullText = '', buffer = '';
         while (true) {
             const { done, value } = await reader.read();
@@ -303,7 +305,7 @@ async function sendQuestion() {
         saveHistory();
     } catch(e) {
         document.getElementById('chatLoading').classList.add('hidden'); document.getElementById('chatLoading').classList.remove('flex');
-        appendMessage('ai', '⚠️ 網絡錯誤：' + e.message);
+        appendMessage('ai', '⚠️ ' + e.message);
     }
     loading = false; document.getElementById('sendBtn').disabled = false; document.getElementById('questionInput').focus();
 }
