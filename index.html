@@ -55,7 +55,7 @@ body{font-family:'Noto Sans TC',sans-serif;background:#f8fafc}
 </div>
 <div id="tabChatContent" class="block">
     <div class="max-w-3xl mx-auto px-3 md:px-4">
-        <div id="chatBox" class="flex flex-col gap-3 py-4"><div class="msg-ai self-start px-4 py-3.5 shadow-sm"><div class="flex items-center gap-2 mb-1.5"><span class="text-xl">🤖</span><span class="font-black text-sm text-indigo-600 dark:text-indigo-400">BAFS 地獄救星</span></div><p class="text-sm text-slate-600 dark:text-slate-300 leading-relaxed">喂喂喂！有咩 BAFS 問題即管問，我夠寸但包你明。例如：</p><div class="flex flex-wrap gap-1.5 mt-2"><span class="cited-chip cursor-pointer" onclick="askSample('什麼是流動資產和流動負債的分別？')">什麼是流動資產和流動負債的分別？</span><span class="cited-chip cursor-pointer" onclick="askSample('解釋 SMART 目標係咩')">解釋 SMART 目標係咩</span><span class="cited-chip cursor-pointer" onclick="askSample('損益表和財務狀況表有咩分別？')">損益表和財務狀況表有咩分別？</span></div></div></div>
+        <div id="chatBox" class="flex flex-col gap-3 py-4"><div class="msg-ai self-start px-4 py-3.5 shadow-sm"><div class="flex items-center gap-2 mb-1.5"><span class="text-xl">🤖</span><span class="font-black text-sm text-indigo-600 dark:text-indigo-400">BAFS 地獄救星</span></div><p class="text-sm text-slate-600 dark:text-slate-300 leading-relaxed">喂喂喂！有咩 BAFS 問題即管問，我唔會直接開估，會出題加選項一步步帶你諗。例如：</p><div class="flex flex-wrap gap-1.5 mt-2"><span class="cited-chip cursor-pointer" onclick="askSample('什麼是流動資產和流動負債的分別？')">什麼是流動資產和流動負債的分別？</span><span class="cited-chip cursor-pointer" onclick="askSample('解釋 SMART 目標係咩')">解釋 SMART 目標係咩</span><span class="cited-chip cursor-pointer" onclick="askSample('損益表和財務狀況表有咩分別？')">損益表和財務狀況表有咩分別？</span></div></div></div>
         <div id="chatLoading" class="hidden items-center gap-2 px-4 py-3"><span class="typing-dot"></span><span class="typing-dot"></span><span class="typing-dot"></span><span class="text-xs text-slate-400 ml-2">思考中...</span></div>
     </div>
     <div class="fixed bottom-0 left-0 right-0 p-3 md:p-4 shadow-lg z-40 bg-white dark:bg-slate-800 border-t border-slate-200 dark:border-slate-700">
@@ -199,7 +199,7 @@ function restoreMessages() {
 }
 function newChat() {
     chatHistory = []; saveHistory();
-    document.getElementById('chatBox').innerHTML = '<div class="msg-ai self-start px-4 py-3.5 shadow-sm"><div class="flex items-center gap-2 mb-1.5"><span class="text-xl">🤖</span><span class="font-black text-sm text-indigo-600 dark:text-indigo-400">BAFS 地獄救星</span></div><p class="text-sm text-slate-600 dark:text-slate-300 leading-relaxed">喂喂喂！有咩 BAFS 問題即管問，我夠寸但包你明。例如：</p><div class="flex flex-wrap gap-1.5 mt-2"><span class="cited-chip cursor-pointer" onclick="askSample(\'什麼是流動資產和流動負債的分別？\')">什麼是流動資產和流動負債的分別？</span><span class="cited-chip cursor-pointer" onclick="askSample(\'解釋 SMART 目標係咩\')">解釋 SMART 目標係咩</span><span class="cited-chip cursor-pointer" onclick="askSample(\'損益表和財務狀況表有咩分別？\')">損益表和財務狀況表有咩分別？</span></div></div>';
+    document.getElementById('chatBox').innerHTML = '<div class="msg-ai self-start px-4 py-3.5 shadow-sm"><div class="flex items-center gap-2 mb-1.5"><span class="text-xl">🤖</span><span class="font-black text-sm text-indigo-600 dark:text-indigo-400">BAFS 地獄救星</span></div><p class="text-sm text-slate-600 dark:text-slate-300 leading-relaxed">喂喂喂！有咩 BAFS 問題即管問，我唔會直接開估，會出題加選項一步步帶你諗。例如：</p><div class="flex flex-wrap gap-1.5 mt-2"><span class="cited-chip cursor-pointer" onclick="askSample(\'什麼是流動資產和流動負債的分別？\')">什麼是流動資產和流動負債的分別？</span><span class="cited-chip cursor-pointer" onclick="askSample(\'解釋 SMART 目標係咩\')">解釋 SMART 目標係咩</span><span class="cited-chip cursor-pointer" onclick="askSample(\'損益表和財務狀況表有咩分別？\')">損益表和財務狀況表有咩分別？</span></div></div>';
     document.getElementById('questionInput').value = ''; document.getElementById('questionInput').focus();
 }
 var citedMap = {};
@@ -242,6 +242,32 @@ function appendMessage(role, content, cited) {
     }
     box.appendChild(div); box.scrollTop = box.scrollHeight; saveHistory();
 }
+function appendGuideMessage(reply, options, cited) {
+    const box = document.getElementById('chatBox');
+    const div = document.createElement('div');
+    div.className = 'msg-ai self-start px-4 py-3.5 shadow-sm';
+    let h = '';
+    if (cited && cited.length) { cited.forEach(t => { if (t.code && t.topic_id) citedMap[t.code] = t.topic_id; }); h = '<div class="flex flex-wrap gap-1 mt-2.5 pt-2.5 border-t border-slate-200 dark:border-slate-600">' + cited.map(t => '<a href="javascript:void(0)" onclick="showNotesModal('+(t.topic_id||0)+')" class="topic-tag hover:bg-indigo-200 dark:hover:bg-indigo-800 transition">'+(t.code||'')+' '+(t.title||'')+'</a>').join('') + '</div>'; }
+    div.innerHTML = '<div class="flex items-center gap-2 mb-1.5"><span class="text-xl">🤖</span><span class="font-black text-sm text-indigo-600 dark:text-indigo-400">BAFS 地獄救星</span></div><div class="text-sm text-slate-700 dark:text-slate-200 leading-relaxed">' + markedContent(reply) + '</div>' + h;
+    box.appendChild(div);
+    if (options && options.length) {
+        const row = document.createElement('div');
+        row.className = 'flex flex-wrap gap-1.5 mt-1 mb-1 pl-1';
+        options.forEach(op => {
+            const b = document.createElement('button');
+            b.type = 'button';
+            b.className = 'cited-chip cursor-pointer hover:bg-indigo-200 dark:hover:bg-indigo-800 transition';
+            b.style.fontSize = '0.75rem';
+            b.style.padding = '0.35rem 0.8rem';
+            b.textContent = op;
+            b.onclick = () => askSample(op);
+            row.appendChild(b);
+        });
+        box.appendChild(row);
+    }
+    box.scrollTop = box.scrollHeight;
+    chatHistory.push({role:'assistant', content: reply});
+}
 async function sendQuestion() {
     const input = document.getElementById('questionInput');
     const q = input.value.trim();
@@ -254,54 +280,32 @@ async function sendQuestion() {
     const { context, cited } = searchNotes(q);
     try {
         const tone = currentMode === 'gentle' ? '你係一個好溫柔體貼嘅香港 BAFS 補習老師，人稱「地獄救星」。語氣：溫柔鼓勵正面。多啲「加油～」、「慢慢嚟☺️」。' : '你係一個超嚴厲但教學一流嘅香港 BAFS 補習老師，人稱「地獄救星」。語氣：極度直接、唔客氣，但係每串完一句都必定加一個爛gag！開頭用最狠嘅說話點醒學生，跟住認真教，最後以爛gag收尾。金句參考：「你咁都唔識？」、「呢個答案錯到離晒譜」、「好簡單啫大佬」。爛gag例子：「會計試卷同初戀一樣，明明好難放低但都要放手」、「折舊同我份人工一樣，年年遞減」、「負債同我條褲頭帶一樣，愈拉愈緊」。必須每段回應包含至少一個爛gag。要狠又要好笑，唔好人身攻擊。';
-        const system = tone + '\n\n守則：\n- 盡量用口語化粵語回答，多舉日常生活例子解釋 BAFS 概念。\n- BAFS 知識部分必須根據「筆記內容」入面嘅原文，一字不改。\n- 引用課題時用筆記原文作答，唔好自己作。\n- 筆記唔夠可加自己知識，但要標明「網上補充」。\n- 引用課題（topic code），並提醒學生可以 click 課題標籤直接去筆記頁面。\n- 回答中絕對不可出現粗口字眼，要用星星（*）代替。\n- 如果問題同 BAFS 無關，寸佢兩句就得，唔好認真答，最後一定要叫佢溫 BAFS。';
+        const system = tone + '\n\n【引導式教學鐵則 - 必須遵守】\n- 永遠唔好第一時間直接畀答案。先問一條聚焦嘅引導問題，等學生自己諗。\n- 每次回覆必須附帶 2 至 4 個選項，等學生可以直接撳掣回答；選項要有似是而非嘅干擾項；最後一個選項固定係「💡 諗唔到，畀啲提示」。\n- 學生答啱就讚佢，再用新問題推佢行下一步；答錯就指出邊度諗錯咗，再問一條更細步嘅問題。\n- 學生撳咗「畀提示」兩次、或者話唔識，就拆細問題、畀例子；再唔識先直接講答案，再用一句總結收尾。\n- 每次回覆要短（150字以內），一次只問一條主問題。\n\n守則：\n- 盡量用口語化粵語回答，多舉日常生活例子解釋 BAFS 概念。\n- BAFS 知識部分必須根據「筆記內容」入面嘅原文，一字不改。\n- 引用課題時用筆記原文作答，唔好自己作。\n- 筆記唔夠可加自己知識，但要標明「網上補充」。\n- 引用課題（topic code），並提醒學生可以 click 課題標籤直接去筆記頁面。\n- 回答中絕對不可出現粗口字眼，要用星星（*）代替。\n- 如果問題同 BAFS 無關，寸佢兩句就得，唔好認真答，最後一定要叫佢溫 BAFS。\n- 只可以輸出 JSON，唔好加 markdown code block：{"reply":"...","options":["...","...","💡 諗唔到，畀啲提示"],"done":false}';
 
         let msgs = [{role:'system', content: system}];
         for (const h of historyForApi) { if (['user','assistant'].includes(h.role)) msgs.push({role:h.role, content:h.content}); }
         msgs.push({role:'user', content: context ? '【筆記內容】\n' + context + '\n\n【學生問題】\n' + q : q});
         if (msgs.length > 5) msgs = [msgs[0]].concat(msgs.slice(-4));
 
-        const box = document.getElementById('chatBox');
-        const aiDiv = document.createElement('div');
-        aiDiv.className = 'msg-ai self-start px-4 py-3.5 shadow-sm';
-        aiDiv.innerHTML = '<div class="flex items-center gap-2 mb-1.5"><span class="text-xl">🤖</span><span class="font-black text-sm text-indigo-600 dark:text-indigo-400">BAFS 地獄救星</span></div><div class="stream-content text-sm text-slate-700 dark:text-slate-200 leading-relaxed"></div>';
-        box.appendChild(aiDiv);
-        document.getElementById('chatLoading').classList.add('hidden'); document.getElementById('chatLoading').classList.remove('flex');
+        // 非串流 JSON 模式：等回覆返嚟先一次過顯示回覆＋選項掣
 
-        const res = await fetch(API_ENDPOINT, { method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer '+API_KEY}, body:JSON.stringify({model:MODEL, messages:msgs, temperature:0.9, max_tokens:2048, stream:true}) });
-        if (!res.ok) { aiDiv.remove(); const err = await res.json().catch(()=>({})); throw new Error(err.error?.message || res.statusText); }
-        const reader = res.body.getReader();
-        const decoder = new TextDecoder();
-        const contentDiv = aiDiv.querySelector('.stream-content');
-        let fullText = '', buffer = '';
-        while (true) {
-            const { done, value } = await reader.read();
-            if (done) break;
-            buffer += decoder.decode(value, {stream: true});
-            const lines = buffer.split('\n');
-            buffer = lines.pop() || '';
-            for (const line of lines) {
-                const m = line.match(/^data:\s*(.*)/);
-                if (!m) continue;
-                const payload = m[1].trim();
-                if (payload === '[DONE]') continue;
-                try {
-                    const chunk = JSON.parse(payload);
-                    const delta = chunk.choices?.[0]?.delta?.content || '';
-                    fullText += delta;
-                    contentDiv.innerHTML = markedContent(fullText);
-                    box.scrollTop = box.scrollHeight;
-                } catch(e) {}
-            }
+        const res = await fetch(API_ENDPOINT, { method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer '+API_KEY}, body:JSON.stringify({model:MODEL, messages:msgs, temperature:0.7, max_tokens:800}) });
+        document.getElementById('chatLoading').classList.add('hidden'); document.getElementById('chatLoading').classList.remove('flex');
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error?.message || data.error || res.statusText);
+        const raw = ((data.choices?.[0]?.message?.content) || '').trim();
+        let reply = '', options = [];
+        try {
+            const pj = JSON.parse(raw);
+            if (pj && pj.reply) { reply = String(pj.reply); if (Array.isArray(pj.options)) options = pj.options.filter(x => typeof x === 'string' && x.trim()).slice(0, 4).map(x => x.trim()); }
+            else throw 0;
+        } catch(e2) {
+            const mm = raw.match(/\{[\s\S]*\}/);
+            if (mm) { try { const p2 = JSON.parse(mm[0]); if (p2 && p2.reply) { reply = String(p2.reply); if (Array.isArray(p2.options)) options = p2.options.filter(x => typeof x === 'string' && x.trim()).slice(0, 4).map(x => x.trim()); } } catch(e3) {} }
         }
-        chatHistory.push({role:'assistant', content: fullText});
-        if (cited && cited.length) {
-            cited.forEach(t => { if (t.code && t.topic_id) citedMap[t.code] = t.topic_id; });
-            const tagsDiv = document.createElement('div');
-            tagsDiv.className = 'flex flex-wrap gap-1 mt-2.5 pt-2.5 border-t border-slate-200 dark:border-slate-600';
-            tagsDiv.innerHTML = cited.map(t => '<a href="javascript:void(0)" onclick="showNotesModal('+(t.topic_id||0)+')" class="topic-tag hover:bg-indigo-200 dark:hover:bg-indigo-800 transition">'+(t.code||'')+' '+(t.title||'')+'</a>').join('');
-            aiDiv.appendChild(tagsDiv);
-        }
+        if (!reply) reply = raw;
+        if (!options.length) options = ['💡 諗唔到，畀啲提示'];
+        appendGuideMessage(reply, options, cited);
         saveHistory();
     } catch(e) {
         document.getElementById('chatLoading').classList.add('hidden'); document.getElementById('chatLoading').classList.remove('flex');
