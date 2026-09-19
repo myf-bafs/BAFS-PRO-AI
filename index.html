@@ -64,7 +64,7 @@ body{font-family:'Noto Sans TC',sans-serif;background:#f8fafc}
             <button onclick="newChat()" class="px-3 py-3 rounded-xl bg-slate-200 dark:bg-slate-700 text-slate-600 dark:text-slate-300 font-bold text-xs hover:bg-slate-300 transition flex-shrink-0">🆕</button>
             <button id="sendBtn" onclick="sendQuestion()" class="px-5 py-3 rounded-xl bg-indigo-600 text-white font-black text-sm hover:bg-indigo-700 transition shadow-md disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5">傳送 ➤</button>
         </div>
-        <p class="text-center text-[10px] text-slate-400 mt-1.5">基於筆記內容回答 · 由 GLM 提供</p>
+        <p class="text-center text-[10px] text-slate-400 mt-1.5">基於筆記內容回答 · 由 GLM 提供 · <span id="notesStatus">筆記載入中...</span></p>
     </div>
 </div>
 <div id="tabGradeContent" class="hidden">
@@ -162,6 +162,19 @@ const API_KEY = 'eeadc107777b44be96a529da6f3073aa.MMjiigBxXkike7Ew';
 const API_ENDPOINT = 'https://open.bigmodel.cn/api/paas/v4/chat/completions';
 const MODEL = 'glm-4-flash-250414';
 let loading = false, chatHistory = [], currentMode = 'savage', currentTab = 'chat', quizData = null, useAIQuiz = false;
+
+// 單一來源：優先讀 notes_md_all.md（note/ 全文最新版）；fetch 失敗（例如 file:// 開檔）就用 notes_data.js 內嵌版
+function updateNotesStatus() {
+    try {
+        const n = (typeof NOTES_MD === 'string' ? (NOTES_MD.match(/^### Topic \d+:/gm) || []).length : 0);
+        const el = document.getElementById('notesStatus');
+        if (el) el.textContent = n > 0 ? ('已載入 ' + n + ' 課筆記') : '筆記未載入';
+    } catch(e) {}
+}
+fetch('notes_md_all.md').then(r => { if (!r.ok) throw 0; return r.text(); }).then(t => {
+    if (t && t.length > 50000 && /### Topic \d+:/.test(t)) NOTES_MD = t;
+    updateNotesStatus();
+}).catch(() => { updateNotesStatus(); });
 
 function switchTab(tab) {
     currentTab = tab;
