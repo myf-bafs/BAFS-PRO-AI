@@ -211,7 +211,7 @@ function restoreMessages() {
     box.scrollTop = box.scrollHeight;
 }
 function newChat() {
-    chatHistory = []; saveHistory();
+    chatHistory = []; saveHistory(); guideHints = 0; window._flowKind = null; window._guideActive = false;
     document.getElementById('chatBox').innerHTML = '<div class="msg-ai self-start px-4 py-3.5 shadow-sm"><div class="flex items-center gap-2 mb-1.5"><span class="text-xl">🤖</span><span class="font-black text-sm text-indigo-600 dark:text-indigo-400">BAFS 地獄救星</span></div><p class="text-sm text-slate-600 dark:text-slate-300 leading-relaxed">喂喂喂！有咩 BAFS 問題即管問，我唔會直接開估，會出題加選項一步步帶你諗。例如：</p><div class="flex flex-wrap gap-1.5 mt-2"><span class="cited-chip cursor-pointer" onclick="askSample(\'什麼是流動資產和流動負債的分別？\')">什麼是流動資產和流動負債的分別？</span><span class="cited-chip cursor-pointer" onclick="askSample(\'解釋 SMART 目標係咩\')">解釋 SMART 目標係咩</span><span class="cited-chip cursor-pointer" onclick="askSample(\'損益表和財務狀況表有咩分別？\')">損益表和財務狀況表有咩分別？</span></div></div>';
     document.getElementById('questionInput').value = ''; document.getElementById('questionInput').focus();
 }
@@ -223,7 +223,20 @@ function markedContent(text) {
     text = text.replace(/\n/g, '<br>');
     return '<p class="mt-0 leading-relaxed">' + text + '</p>';
 }
-function askSample(q) { document.getElementById('questionInput').value = q; sendQuestion(); }
+function askSample(q) { guideHints = 0; window._flowKind = 'new'; window._guideActive = false; document.getElementById('questionInput').value = q; sendQuestion(); }
+let guideHints = 0;
+function flowDirective(kind) {
+    if (kind === 'hint') return guideHints >= 2 ? '【流程指示：學生已撳提示第2次，今次必須直接畀完整答案（逐字引用筆記）+一句總結，done=true】' : '【流程指示：學生撳提示第' + guideHints + '次，拆細問題+畀例子，唔准畀完整答案，done=false】';
+    if (kind === 'final') return '【流程指示：學生要求直接睇答案，必須直接畀完整答案（逐字引用筆記）+一句總結，done=true】';
+    if (kind === 'answer') return '【流程指示：學生回應咗上一條引導問題，先判斷啱定錯再按階段二處理；如係全新問題則按階段一處理】';
+    return '【流程指示：新問題，只准出引導問題+選項，嚴禁直接畀答案，done=false】';
+}
+function answerOption(op) {
+    if (op.indexOf('諗唔到') !== -1) { guideHints++; window._flowKind = 'hint'; }
+    else if (op.indexOf('睇答案') !== -1) { window._flowKind = 'final'; guideHints = 0; window._guideActive = false; }
+    else { window._flowKind = 'answer'; }
+    document.getElementById('questionInput').value = op; sendQuestion();
+}
 function searchNotes(question) {
     const raw = question.replace(/[.,!?;:()（）\[\]【】、，。？；：！""''「」『』]/g, ' ').split(/\s+/);
     const keywords = [];
@@ -273,7 +286,7 @@ function appendGuideMessage(reply, options, cited) {
             b.style.fontSize = '0.75rem';
             b.style.padding = '0.35rem 0.8rem';
             b.textContent = op;
-            b.onclick = () => askSample(op);
+            b.onclick = () => answerOption(op);
             row.appendChild(b);
         });
         box.appendChild(row);
@@ -291,13 +304,17 @@ async function sendQuestion() {
     const recent = chatHistory.slice(-21);
     const historyForApi = recent.slice(0, -1);
     const { context, cited } = searchNotes(q);
+    let flowKind = window._flowKind || (window._guideActive ? 'answer' : 'new');
+    window._flowKind = null;
+    if (flowKind === 'new') guideHints = 0;
+    const directive = flowDirective(flowKind);
     try {
         const tone = currentMode === 'gentle' ? '你係一個好溫柔體貼嘅香港 BAFS 補習老師，人稱「地獄救星」。語氣：溫柔鼓勵正面。多啲「加油～」、「慢慢嚟☺️」。' : '你係一個超嚴厲但教學一流嘅香港 BAFS 補習老師，人稱「地獄救星」。語氣：極度直接、唔客氣，但係每串完一句都必定加一個爛gag！開頭用最狠嘅說話點醒學生，跟住認真教，最後以爛gag收尾。金句參考：「你咁都唔識？」、「呢個答案錯到離晒譜」、「好簡單啫大佬」。爛gag例子：「會計試卷同初戀一樣，明明好難放低但都要放手」、「折舊同我份人工一樣，年年遞減」、「負債同我條褲頭帶一樣，愈拉愈緊」。必須每段回應包含至少一個爛gag。要狠又要好笑，唔好人身攻擊。';
-        const system = tone + '\n\n【引導式教學鐵則 - 必須遵守】\n- 永遠唔好第一時間直接畀答案。先問一條聚焦嘅引導問題，等學生自己諗。\n- 每次回覆必須附帶 2 至 4 個選項，等學生可以直接撳掣回答；選項要有似是而非嘅干擾項；最後一個選項固定係「💡 諗唔到，畀啲提示」。\n- 學生答啱就讚佢，再用新問題推佢行下一步；答錯就指出邊度諗錯咗，再問一條更細步嘅問題。\n- 學生撳咗「畀提示」兩次、或者話唔識，就拆細問題、畀例子；再唔識先直接講答案，再用一句總結收尾。\n- 每次回覆要短（150字以內），一次只問一條主問題。\n\n【用字鐵則 - 最高優先，凌駕其他所有守則】\n- 所有 BAFS 概念、定義、術語、例子、解釋，必須逐字引用「筆記內容」原文，一字不改：唔准改寫、唔准用同義詞代替、唔准用自己嘅字眼重新表述。\n- 引導問題同選項（包括干擾項）都必須用筆記出現過嘅字眼組合，唔准自創 BAFS 術語。\n- 「筆記內容」冇覆蓋嘅問題，直接回答「呢個筆記冇教，問返老師啦」，絕對唔准用自己知識補充作答。\n- 唯一例外：語氣詞、串人金句同爛gag可以用自己字眼，但入面唔准夾雜任何 BAFS 概念或術語。\n\n守則：\n- 用口語化粵語，例子只可以用筆記入面嘅例子，唔准自創日常生活例子。\n- 引用課題（topic code），並提醒學生可以 click 課題標籤直接去筆記頁面。\n- 回答中絕對不可出現粗口字眼，要用星星（*）代替。\n- 如果問題同 BAFS 無關，寸佢兩句就得，唔好認真答，最後一定要叫佢溫 BAFS。\n- 只可以輸出 JSON，唔好加 markdown code block：{"reply":"...","options":["...","...","💡 諗唔到，畀啲提示"],"done":false}';
+        const system = tone + '\n\n【引導式教學流程 - 每次必須遵守，收到「流程指示」時以指示為準】\n- 階段一（新問題）：嚴禁直接畀答案。只出一條聚焦引導問題 + 選項，等學生自己諗。done=false。\n- 階段二（學生答）：先判斷上一個回答啱定錯。答啱→讚+用新問題推下一步；答錯→指出錯邊度+問更細步問題。每次都要有選項。done=false。\n- 階段三（提示）：學生撳「💡 諗唔到，畀啲提示」第1次→拆細問題+畀例子，唔准畀完整答案，done=false；第2次→必須直接畀完整答案（逐字引用筆記）+一句總結，done=true。\n- 終點：學生撳「📢 直接睇答案」→必須直接畀完整答案（逐字引用筆記）+一句總結，done=true。\n- 每次回覆要短（150字以內，完整答案嗰次除外），一次只問一條主問題。\n- options 規定：2至4個選項，要有似是而非嘅干擾項，最後兩個固定係「💡 諗唔到，畀啲提示」同「📢 直接睇答案」。\n\n【用字鐵則 - 最高優先，凌駕其他所有守則】\n- 所有 BAFS 概念、定義、術語、例子、解釋，必須逐字引用「筆記內容」原文，一字不改：唔准改寫、唔准用同義詞代替、唔准用自己嘅字眼重新表述。\n- 引導問題同選項（包括干擾項）都必須用筆記出現過嘅字眼組合，唔准自創 BAFS 術語。\n- 「筆記內容」冇覆蓋嘅問題，直接回答「呢個筆記冇教，問返老師啦」，絕對唔准用自己知識補充作答。\n- 唯一例外：語氣詞、串人金句同爛gag可以用自己字眼，但入面唔准夾雜任何 BAFS 概念或術語。\n\n守則：\n- 用口語化粵語，例子只可以用筆記入面嘅例子，唔准自創日常生活例子。\n- 引用課題（topic code），並提醒學生可以 click 課題標籤直接去筆記頁面。\n- 回答中絕對不可出現粗口字眼，要用星星（*）代替。\n- 如果問題同 BAFS 無關，寸佢兩句就得，唔好認真答，最後一定要叫佢溫 BAFS。\n- 只可以輸出 JSON，唔好加 markdown code block：{"reply":"...","options":["...","...","💡 諗唔到，畀啲提示","📢 直接睇答案"],"done":false}';
 
         let msgs = [{role:'system', content: system}];
         for (const h of historyForApi) { if (['user','assistant'].includes(h.role)) msgs.push({role:h.role, content:h.content}); }
-        msgs.push({role:'user', content: context ? '【筆記內容】\n' + context + '\n\n【學生問題】\n' + q : q});
+        msgs.push({role:'user', content: (context ? '【筆記內容】\n' + context + '\n\n' : '') + '【學生問題】\n' + q + '\n\n' + directive});
         if (msgs.length > 5) msgs = [msgs[0]].concat(msgs.slice(-4));
 
         // 非串流 JSON 模式：等回覆返嚟先一次過顯示回覆＋選項掣
@@ -307,17 +324,19 @@ async function sendQuestion() {
         const data = await res.json();
         if (!res.ok) throw new Error(data.error?.message || data.error || res.statusText);
         const raw = ((data.choices?.[0]?.message?.content) || '').trim();
-        let reply = '', options = [];
+        let reply = '', options = [], doneFlag = false;
         try {
             const pj = JSON.parse(raw);
-            if (pj && pj.reply) { reply = String(pj.reply); if (Array.isArray(pj.options)) options = pj.options.filter(x => typeof x === 'string' && x.trim()).slice(0, 4).map(x => x.trim()); }
+            if (pj && pj.reply) { reply = String(pj.reply); if (pj.done === true) doneFlag = true; if (Array.isArray(pj.options)) options = pj.options.filter(x => typeof x === 'string' && x.trim()).slice(0, 4).map(x => x.trim()); }
             else throw 0;
         } catch(e2) {
             const mm = raw.match(/\{[\s\S]*\}/);
-            if (mm) { try { const p2 = JSON.parse(mm[0]); if (p2 && p2.reply) { reply = String(p2.reply); if (Array.isArray(p2.options)) options = p2.options.filter(x => typeof x === 'string' && x.trim()).slice(0, 4).map(x => x.trim()); } } catch(e3) {} }
+            if (mm) { try { const p2 = JSON.parse(mm[0]); if (p2 && p2.reply) { reply = String(p2.reply); if (p2.done === true) doneFlag = true; if (Array.isArray(p2.options)) options = p2.options.filter(x => typeof x === 'string' && x.trim()).slice(0, 4).map(x => x.trim()); } } catch(e3) {} }
         }
         if (!reply) reply = raw;
-        if (!options.length) options = ['💡 諗唔到，畀啲提示'];
+        if (!options.length) options = ['💡 諗唔到，畀啲提示', '📢 直接睇答案'];
+        window._guideActive = !doneFlag;
+        if (doneFlag) guideHints = 0;
         appendGuideMessage(reply, options, cited);
         saveHistory();
     } catch(e) {
