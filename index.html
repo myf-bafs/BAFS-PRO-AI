@@ -247,8 +247,8 @@ function searchNotes(question) {
     let scored = [];
     for (let i = 1; i < sections.length; i++) {
         const body = sections[i]; let score = 0;
-        for (const kw of unique) { const re = new RegExp(kw.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi'); const m = body.match(re); if (m) score += m.length; }
-        if (score > 0) { const h = headers[i-1] || ''; const match = h.match(/### Topic (\d+):\s*(\S+)\s*-\s*(.*)/); scored.push({ topic_id: parseInt(match?.[1]||i), code: match?.[2]||'', title: match?.[3]||'', body: body.substring(0, 500), score }); }
+        for (const kw of unique) { const re = new RegExp(kw.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi'); const m = body.match(re); if (m) score += m.length * kw.length; }
+        if (score > 0) { const h = headers[i-1] || ''; const match = h.match(/### Topic (\d+):\s*(\S+)\s*-\s*(.*)/); scored.push({ topic_id: parseInt(match?.[1]||i), code: match?.[2]||'', title: match?.[3]||'', body: body.substring(0, 1200), score }); }
     }
     scored.sort((a,b) => b.score - a.score);
     if (scored.length === 0) return { context: '', cited: [] };
@@ -323,6 +323,23 @@ function groundCoverage(reply, context) {
     }
     return covered / total;
 }
+function sanitizeOptions(options) {
+    const FIXED_HINT = '💡 諗唔到，畀啲提示';
+    const FIXED_FINAL = '📢 直接睇答案';
+    let choices = [];
+    (options || []).forEach(op => {
+        String(op).split(/\n+/).forEach(line => {
+            const t = line.trim().replace(/^[•\-\*]\s*/, '');
+            if (!t) return;
+            if (/諗唔到|💡|睇答案|📢/.test(t)) return;
+            if (/[？?]$/.test(t)) return;
+            if (t.length > 60) return;
+            choices.push(t);
+        });
+    });
+    choices = [...new Set(choices)].slice(0, 4);
+    return choices.concat([FIXED_HINT, FIXED_FINAL]);
+}
 async function sendQuestion() {
     const input = document.getElementById('questionInput');
     const q = input.value.trim();
@@ -339,7 +356,7 @@ async function sendQuestion() {
     const directive = flowDirective(flowKind);
     try {
         const tone = currentMode === 'gentle' ? '你係一個好溫柔體貼嘅香港 BAFS 補習老師，人稱「地獄救星」。語氣：溫柔鼓勵正面。多啲「加油～」、「慢慢嚟☺️」。' : '你係一個超嚴厲但教學一流嘅香港 BAFS 補習老師，人稱「地獄救星」。語氣：極度直接、唔客氣，但係每串完一句都必定加一個爛gag！開頭用最狠嘅說話點醒學生，跟住認真教，最後以爛gag收尾。金句參考：「你咁都唔識？」、「呢個答案錯到離晒譜」、「好簡單啫大佬」。爛gag例子：「會計試卷同初戀一樣，明明好難放低但都要放手」、「折舊同我份人工一樣，年年遞減」、「負債同我條褲頭帶一樣，愈拉愈緊」。必須每段回應包含至少一個爛gag。要狠又要好笑，唔好人身攻擊。';
-        const system = tone + '\n\n【引導式教學流程 - 每次必須遵守，收到「流程指示」時以指示為準】\n- 階段一（新問題）：嚴禁直接畀答案。只出一條聚焦引導問題 + 選項，等學生自己諗。done=false。\n- 階段二（學生答）：先判斷上一個回答啱定錯。答啱→讚+用新問題推下一步；答錯→指出錯邊度+問更細步問題。每次都要有選項。done=false。\n- 階段三（提示）：學生撳「💡 諗唔到，畀啲提示」第1次→拆細問題+畀例子，唔准畀完整答案，done=false；第2次→必須直接畀完整答案（逐字引用筆記）+一句總結，done=true。\n- 終點：學生撳「📢 直接睇答案」→必須直接畀完整答案（逐字引用筆記）+一句總結，done=true。\n- 每次回覆要短（150字以內，完整答案嗰次除外），一次只問一條主問題。\n- options 規定：2至4個選項，要有似是而非嘅干擾項，最後兩個固定係「💡 諗唔到，畀啲提示」同「📢 直接睇答案」。\n\n【用字鐵則 - 最高優先，凌駕其他所有守則】\n- 所有 BAFS 概念、定義、術語、例子、解釋，必須逐字引用「筆記內容」原文，一字不改：唔准改寫、唔准用同義詞代替、唔准用自己嘅字眼重新表述。\n- 引導問題同選項（包括干擾項）都必須用筆記出現過嘅字眼組合，唔准自創 BAFS 術語。\n- 「筆記內容」冇覆蓋嘅問題，直接回答「呢個筆記冇教，問返老師啦」，絕對唔准用自己知識補充作答。\n- 完整答案（done=true）嘅 reply 必須包含至少一段連續15字以上、逐字複製自「筆記內容」嘅原文做核心答案，唔准全篇轉述。
+        const system = tone + '\n\n【引導式教學流程 - 每次必須遵守，收到「流程指示」時以指示為準】\n- 階段一（新問題）：嚴禁直接畀答案。只出一條聚焦引導問題 + 選項，等學生自己諗。done=false。\n- 階段二（學生答）：先判斷上一個回答啱定錯。答啱→讚+用新問題推下一步；答錯→指出錯邊度+問更細步問題。每次都要有選項。done=false。\n- 階段三（提示）：學生撳「💡 諗唔到，畀啲提示」第1次→拆細問題+畀例子，唔准畀完整答案，done=false；第2次→必須直接畀完整答案（逐字引用筆記）+一句總結，done=true。\n- 終點：學生撳「📢 直接睇答案」→必須直接畀完整答案（逐字引用筆記）+一句總結，done=true。\n- 每次回覆要短（150字以內，完整答案嗰次除外），一次只問一條主問題。\n- options 規定：2至4個選項，要有似是而非嘅干擾項，最後兩個固定係「💡 諗唔到，畀啲提示」同「📢 直接睇答案」。\n- reply 只准出引導問題本身，唔准喺 reply 入面重複選項 A/B/C/D 嘅內容。\n\n【用字鐵則 - 最高優先，凌駕其他所有守則】\n- 所有 BAFS 概念、定義、術語、例子、解釋，必須逐字引用「筆記內容」原文，一字不改：唔准改寫、唔准用同義詞代替、唔准用自己嘅字眼重新表述。\n- 引導問題同選項（包括干擾項）都必須用筆記出現過嘅字眼組合，唔准自創 BAFS 術語。\n- 「筆記內容」冇覆蓋嘅問題，直接回答「呢個筆記冇教，問返老師啦」，絕對唔准用自己知識補充作答。\n- 完整答案（done=true）嘅 reply 必須包含至少一段連續15字以上、逐字複製自「筆記內容」嘅原文做核心答案，唔准全篇轉述。
 - 唯一例外：語氣詞、串人金句同爛gag可以用自己字眼，但入面唔准夾雜任何 BAFS 概念或術語。\n\n守則：\n- 用口語化粵語，例子只可以用筆記入面嘅例子，唔准自創日常生活例子。\n- 引用課題（topic code），並提醒學生可以 click 課題標籤直接去筆記頁面。\n- 回答中絕對不可出現粗口字眼，要用星星（*）代替。\n- 如果問題同 BAFS 無關，寸佢兩句就得，唔好認真答，最後一定要叫佢溫 BAFS。\n- 只可以輸出 JSON，唔好加 markdown code block：{"reply":"...","options":["...","...","💡 諗唔到，畀啲提示","📢 直接睇答案"],"done":false}';
 
         let msgs = [{role:'system', content: system}];
@@ -364,16 +381,17 @@ async function sendQuestion() {
             if (mm) { try { const p2 = JSON.parse(mm[0]); if (p2 && p2.reply) { reply = String(p2.reply); if (p2.done === true) doneFlag = true; if (Array.isArray(p2.options)) options = p2.options.filter(x => typeof x === 'string' && x.trim()).slice(0, 4).map(x => x.trim()); } } catch(e3) {} }
         }
         if (!reply) reply = raw;
-        if (!options.length) options = ['💡 諗唔到，畀啲提示', '📢 直接睇答案'];
+        options = sanitizeOptions(options);
         let grounded = null;
-        if (doneFlag && context && reply) {
+        if (context && reply) {
+            const threshold = doneFlag ? 0.35 : 0.2;
             const cov = groundCoverage(reply, context);
             if (cov >= 0) {
-                grounded = cov >= 0.35;
+                grounded = cov >= threshold;
                 if (!grounded) {
                     document.getElementById('chatLoading').classList.remove('hidden'); document.getElementById('chatLoading').classList.add('flex');
                     try {
-                        const msgs2 = [msgs[0]].concat(msgs.slice(1).concat([{role:'assistant', content: raw}, {role:'user', content: '你上次回答冇逐字引用「筆記內容」原文。請嚴格重答：所有 BAFS 內容逐字複製「筆記內容」原文，唔准改寫、唔准加自己字眼解釋概念，完整答案必須包含連續15字以上逐字原文。維持 JSON 格式，done=true。'}]).slice(-4));
+                        const msgs2 = [msgs[0]].concat(msgs.slice(1).concat([{role:'assistant', content: raw}, {role:'user', content: '你上次回答冇逐字引用「筆記內容」原文。' + flowDirective(flowKind) + '另：所有 BAFS 內容逐字複製「筆記內容」原文，唔准改寫。維持 JSON 格式。'}]).slice(-4));
                         const res2 = await fetch(API_ENDPOINT, { method:'POST', headers:{'Content-Type':'application/json','Authorization':'Bearer '+API_KEY}, body:JSON.stringify({model:MODEL, messages:msgs2, temperature:0, max_tokens:800}) });
                         const data2 = await res2.json();
                         const raw2 = ((data2.choices?.[0]?.message?.content) || '').trim();
@@ -381,9 +399,10 @@ async function sendQuestion() {
                         const pj2 = JSON.parse(mm2 ? mm2[0] : raw2);
                         if (pj2 && pj2.reply) {
                             reply = String(pj2.reply);
-                            if (Array.isArray(pj2.options)) { const o2 = pj2.options.filter(x => typeof x === 'string' && x.trim()).slice(0, 4).map(x => x.trim()); if (o2.length) options = o2; }
+                            if (pj2.done === true) doneFlag = true;
+                            if (Array.isArray(pj2.options)) { const o2 = pj2.options.filter(x => typeof x === 'string' && x.trim()); if (o2.length) options = sanitizeOptions(o2); }
                             const cov2 = groundCoverage(reply, context);
-                            if (cov2 >= 0) grounded = cov2 >= 0.35;
+                            if (cov2 >= 0) grounded = cov2 >= (doneFlag ? 0.35 : 0.2);
                         }
                     } catch(e2) {}
                     document.getElementById('chatLoading').classList.add('hidden'); document.getElementById('chatLoading').classList.remove('flex');
@@ -392,7 +411,7 @@ async function sendQuestion() {
         }
         window._guideActive = !doneFlag;
         if (doneFlag) guideHints = 0;
-        appendGuideMessage(reply, options, cited, grounded);
+        appendGuideMessage(reply, options, cited, grounded === false ? false : (doneFlag && grounded === true ? true : null));
         saveHistory();
     } catch(e) {
         document.getElementById('chatLoading').classList.add('hidden'); document.getElementById('chatLoading').classList.remove('flex');
