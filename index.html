@@ -77,7 +77,7 @@ var API_KEY = '';
 // 雙路：先試本機 Ollama（老師部機），失敗自動轉主站代理（所有學生都用得）
 var PROVIDERS = [
     { url: 'http://127.0.0.1:11434/v1/chat/completions', model: 'gemma2:2b', timeout: 30000, local: true },
-    { url: 'https://myf-swcs.free.nf/ai_proxy.php',       model: 'glm-4-flash-250414', timeout: 60000 }
+    { url: 'https://bafs-ai.manyf.workers.dev/',          model: 'cloudflare-workers-ai', timeout: 60000 }
 ];
 var localReady = false;
 // 開頁快速探測本機 Ollama（1.2 秒），冇就唔會拖慢學生
