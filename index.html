@@ -203,11 +203,19 @@ async function send(){
 }
 function restoreChat(){
     try {
+        var box = $('chatBox');
+        if (box.children.length) return true; // 已有內容就唔再加
         var s = localStorage.getItem('bafs_chat');
         if (!s) return false;
         var arr = JSON.parse(s);
         if (!Array.isArray(arr) || !arr.length) return false;
-        arr.forEach(function(h){ pushMsg(h.role === 'user' ? 'user' : 'ai', h.content); });
+        var last = '';
+        arr.forEach(function(h){
+            if (h.content === last) return; // 跳過連續重複
+            if (h.role !== 'user' && h.content.indexOf('喂喂喂！BAFS') === 0) return; // 唔重播 welcome
+            last = h.content;
+            pushMsg(h.role === 'user' ? 'user' : 'ai', h.content);
+        });
         chat = arr; expect = 'answer';
         return true;
     } catch(e){ return false; }
@@ -252,8 +260,7 @@ var quizNow = null;
 
 /* ---------- 啟動 ---------- */
 paintMode();
-if (!restoreChat()) welcome();
-if (typeof QUIZ_DATA === 'undefined' || !QUIZ_DATA) window.QUIZ_DATA = {};
+if (!restoreChat()) welcome();if (typeof QUIZ_DATA === 'undefined' || !QUIZ_DATA) window.QUIZ_DATA = {};
 </script>
 </body>
 </html>
