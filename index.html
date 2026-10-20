@@ -34,10 +34,7 @@ body{font-family:'Noto Sans TC',sans-serif;background:#f8fafc}
 <div class="bg-white border-b border-slate-200 sticky top-[53px] z-40">
   <div class="max-w-3xl mx-auto flex">
     <button onclick="switchTab('chat',this)" class="tab-btn on flex-1 py-3 text-center text-xs md:text-sm font-black border-b-2 border-transparent text-slate-400">💬 問問題</button>
-    <button onclick="switchTab('grade',this)" class="tab-btn flex-1 py-3 text-center text-xs md:text-sm font-black border-b-2 border-transparent text-slate-400">📝 功課批改</button>
     <button onclick="switchTab('quiz',this)" class="tab-btn flex-1 py-3 text-center text-xs md:text-sm font-black border-b-2 border-transparent text-slate-400">🎲 隨機練習</button>
-    <button onclick="switchTab('img',this)" class="tab-btn flex-1 py-3 text-center text-xs md:text-sm font-black border-b-2 border-transparent text-slate-400">🖼️ 圖像</button>
-    <button onclick="switchTab('video',this)" class="tab-btn flex-1 py-3 text-center text-xs md:text-sm font-black border-b-2 border-transparent text-slate-400">🎬 影片</button>
   </div>
 </div>
 
@@ -56,15 +53,6 @@ body{font-family:'Noto Sans TC',sans-serif;background:#f8fafc}
   </div>
 </div>
 
-<!-- 功課批改 -->
-<div id="tab-grade" class="hidden max-w-3xl mx-auto px-3 py-4">
-  <div class="bg-white rounded-2xl p-5 shadow-sm border">
-    <h3 class="font-black mb-3">📝 功課批改</h3>
-    <div id="gradeForm"></div>
-    <div id="gradeResult" class="hidden mt-3 p-4 rounded-xl bg-slate-50 border text-sm"></div>
-  </div>
-</div>
-
 <!-- 隨機練習 -->
 <div id="tab-quiz" class="hidden max-w-3xl mx-auto px-3 py-4">
   <div class="bg-white rounded-2xl p-5 shadow-sm border">
@@ -73,29 +61,6 @@ body{font-family:'Noto Sans TC',sans-serif;background:#f8fafc}
     <button onclick="loadQuiz()" class="w-full mt-3 bg-indigo-50 text-indigo-600 font-bold py-2.5 rounded-xl text-sm">🔄 下一題</button>
     <div id="quizLoading" class="hidden items-center gap-2 px-4 py-2 mt-2"><span class="typing-dot"></span><span class="typing-dot"></span><span class="typing-dot"></span></div>
     <div id="quizResult" class="hidden mt-3 p-4 rounded-xl bg-slate-50 border text-sm"></div>
-  </div>
-</div>
-
-<!-- 圖像 -->
-<div id="tab-img" class="hidden max-w-3xl mx-auto px-3 py-4">
-  <div class="bg-white rounded-2xl p-5 shadow-sm border">
-    <h3 class="font-black mb-1">🖼️ 生成資訊圖</h3>
-    <p class="text-xs text-slate-400 mb-3">揀課題，AI 將筆記內容畫成資訊圖（約 15-30 秒）</p>
-    <div id="imgForm"></div>
-    <div id="imgResult" class="mt-3"></div>
-    <div id="imgLoading" class="hidden items-center gap-2 px-4 py-2"><span class="typing-dot"></span><span class="typing-dot"></span><span class="typing-dot"></span><span class="text-xs text-slate-400 ml-2">生成中...</span></div>
-  </div>
-</div>
-
-<!-- 影片 -->
-<div id="tab-video" class="hidden max-w-3xl mx-auto px-3 py-4">
-  <div class="bg-white rounded-2xl p-5 shadow-sm border">
-    <h3 class="font-black mb-1">🎬 生成影片</h3>
-    <p class="text-xs text-slate-400 mb-3">揀課題生成短片（約 1-3 分鐘）</p>
-    <div id="videoForm"></div>
-    <div id="videoResult" class="mt-3"></div>
-    <div id="videoLoading" class="hidden items-center gap-2 px-4 py-2"><span class="typing-dot"></span><span class="typing-dot"></span><span class="typing-dot"></span><span class="text-xs text-slate-400 ml-2" id="videoStatus">生成中...</span></div>
-    <div class="bg-slate-100 rounded-full h-2 mt-2"><div id="videoProgress" class="bg-indigo-600 h-2 rounded-full" style="width:0%"></div></div>
   </div>
 </div>
 
@@ -110,10 +75,6 @@ window.onerror = function(msg, src, line) {
 var API_KEY = 'eeadc107777b44be96a529da6f3073aa.MMjiigBxXkike7Ew';
 var ENDPOINT = 'https://open.bigmodel.cn/api/paas/v4/chat/completions';
 var MODEL = 'glm-4-flash-250414';
-var IMG_ENDPOINT = 'https://apihub.agnes-ai.com/v1/images/generations';
-var IMG_MODEL = 'agnes-image-2.1-flash';
-var VID_ENDPOINT = 'https://apihub.agnes-ai.com/v1/videos';
-var VID_MODEL = 'agnes-video-v2.0';
 
 var mode = 'savage', hints = 0, expect = 'new', busy = false, chat = [];
 try { if (localStorage.getItem('bafs_mode') === 'gentle') mode = 'gentle'; } catch(e) {}
@@ -128,11 +89,10 @@ function paintMode(){
     else { b.textContent = '🔥 地獄 mode'; b.className = 'text-xs font-bold px-2 py-1 rounded-lg bg-orange-500/30 hover:bg-orange-500/50 transition'; }
 }
 function switchTab(name, btn){
-    ['chat','grade','quiz','img','video'].forEach(function(t){ $('tab-'+t).classList.add('hidden'); });
+    ['chat','quiz'].forEach(function(t){ $('tab-'+t).classList.add('hidden'); });
     document.querySelectorAll('.tab-btn').forEach(function(b){ b.classList.remove('on'); b.classList.add('text-slate-400'); });
     $('tab-'+name).classList.remove('hidden');
     if (btn) { btn.classList.add('on'); btn.classList.remove('text-slate-400'); }
-    if (name === 'img') buildImgForm(); if (name === 'video') buildVideoForm();
 }
 
 /* ---------- 引導式問答 ---------- */
@@ -253,37 +213,6 @@ function restoreChat(){
     } catch(e){ return false; }
 }
 
-/* ---------- 功課批改 ---------- */
-buildGradeForm = function(){
-    if ($('gradeForm').dataset.done) return; $('gradeForm').dataset.done = 1;
-    $('gradeForm').innerHTML =
-      '<label class="text-xs font-bold text-slate-500 mb-1 block">題目</label><textarea id="gw" rows="3" class="w-full px-3 py-2.5 rounded-xl border text-sm"></textarea>' +
-      '<label class="text-xs font-bold text-slate-500 mb-1 mt-2 block">你的答案</label><textarea id="ga" rows="4" class="w-full px-3 py-2.5 rounded-xl border text-sm"></textarea>' +
-      '<button onclick="doGrade()" id="gradeBtn" class="w-full bg-indigo-600 text-white font-black py-3 rounded-xl mt-3">📤 提交批改</button>' +
-      '<div id="gradeLoad" class="hidden items-center gap-2 px-4 py-2 mt-2"><span class="typing-dot"></span><span class="typing-dot"></span><span class="typing-dot"></span></div>';
-};
-async function doGrade(){
-    var q = $('gw').value.trim(), a = $('ga').value.trim();
-    if (!q || !a) return alert('請填寫題目及答案');
-    $('gradeBtn').disabled = true; $('gradeLoad').classList.remove('hidden'); $('gradeLoad').classList.add('flex');
-    var sn = searchNotes(q + ' ' + a);
-    var msgs = [
-      { role: 'system', content: (mode === 'gentle' ? TONE_GENTLE : TONE_SAVAGE) + ' 任務：評分（X/10）、引筆記字眼講評、畀參考答案。\n【鐵則】所有 BAFS 概念/定義/參考答案必須逐字引用【筆記內容】原文，筆記冇覆蓋就註明「筆記冇覆蓋」，唔准自創。先俾分數，再 Point→定義→應用 結構講評。' },
-      { role: 'user', content: (sn.ctx ? '【筆記內容】\n' + sn.ctx + '\n\n' : '') + '【題目】' + q + '\n【學生答案】' + a }
-    ];
-    try {
-        var res = await fetch(ENDPOINT, { method:'POST', headers:{ 'Content-Type':'application/json','Authorization':'Bearer '+API_KEY }, body: JSON.stringify({ model: MODEL, messages: msgs, temperature: 0.3, max_tokens: 2048 }) });
-        var data = await res.json();
-        if (!res.ok) throw new Error(res.statusText);
-        var out = (data.choices[0].message.content || '⚠️ 無回覆');
-        var sm = out.match(/(\d+)\s*\/\s*10/);
-        $('gradeResult').innerHTML = (sm ? '<div class="font-black text-lg mb-2 '+(+sm[1] >= 7?'text-emerald-600':'text-amber-600')+'">'+sm[1]+ ' / 10</div>' : '') + '<div style="white-space:pre-wrap">' + esc(out) + '</div>';
-        $('gradeResult').classList.remove('hidden');
-    } catch(e){ $('gradeResult').innerHTML = '⚠️ 連線失敗：' + e.message; $('gradeResult').classList.remove('hidden'); }
-    $('gradeLoad').classList.add('hidden'); $('gradeLoad').classList.remove('flex');
-    $('gradeBtn').disabled = false;
-}
-
 /* ---------- 題庫練習 ---------- */
 function loadQuiz(){
     var ids = Object.keys(QUIZ_DATA || {});
@@ -321,84 +250,8 @@ async function pickQuiz(sel){
 }
 var quizNow = null;
 
-/* ---------- 圖像 ---------- */
-buildImgForm = function(){
-    if ($('imgForm').dataset.done) return; $('imgForm').dataset.done = 1;
-    var sel = '<label class="text-xs font-bold text-slate-500 mb-1 block">揀課題</label><select id="imgTopic" class="w-full px-3 py-2.5 rounded-xl border text-sm"><option value="">— 請選擇 —</option>';
-    Object.keys(QUIZ_DATA || {}).forEach(function(tid){ var t = QUIZ_DATA[tid]; sel += '<option value="'+tid+'">['+t.code+'] '+t.title+'</option>'; });
-    sel += '</select><label class="text-xs font-bold text-slate-500 mb-1 mt-2 block">額外指示（可選）</label><input id="imgPrompt" class="w-full px-3 py-2.5 rounded-xl border text-sm"><button onclick="doImage()" id="imgBtn" class="w-full bg-indigo-600 text-white font-black py-3 rounded-xl mt-3">🎨 生成資訊圖</button>';
-    $('imgForm').innerHTML = sel;
-};
-async function doImage(){
-    var tid = $('imgTopic').value;
-    if (!tid) return alert('請揀課題');
-    var t = QUIZ_DATA[tid]; extra = $('imgPrompt').value.trim();
-    $('imgBtn').disabled = true; $('imgLoading').classList.remove('hidden'); $('imgLoading').classList.add('flex');
-    var sn = searchNotes(t.title);
-    var prompt = 'Traditional Chinese educational infographic about BAFS [' + t.code + '] ' + t.title + '. Key content: ' + sn.ctx.substring(0, 400) + (extra ? '. User request: ' + extra : '') + '. Style: clean, modern, deep blue+orange, readable Traditional Chinese text.';
-    try {
-        var res = await fetch(IMG_ENDPOINT, { method:'POST', headers:{ 'Content-Type':'application/json','Authorization':'Bearer '+API_KEY }, body: JSON.stringify({ model: IMG_MODEL, prompt: prompt, n:1, size:'1024x1024' }) });
-        var data = await res.json();
-        if (data.error) throw new Error(data.error.message || 'API 錯誤');
-        var url = data.data && data.data[0] && data.data[0].url;
-        if (!url) throw new Error('冇回傳圖片');
-        $('imgResult').innerHTML = '<img src="'+esc(url)+'" class="w-full rounded-xl" onclick="window.open(this.src,\'_blank\')">';
-    } catch(e){ $('imgResult').innerHTML = '<p class="text-red-500 text-sm">⚠️ ' + esc(e.message) + '</p>'; }
-    $('imgLoading').classList.add('hidden'); $('imgLoading').classList.remove('flex');
-    $('imgBtn').disabled = false;
-}
-
-/* ---------- 影片 ---------- */
-buildVideoForm = function(){
-    if ($('videoForm').dataset.done) return; $('videoForm').dataset.done = 1;
-    var sel = '<label class="text-xs font-bold text-slate-500 mb-1 block">揀課題</label><select id="videoTopic" class="w-full px-3 py-2.5 rounded-xl border text-sm"><option value="">— 請選擇 —</option>';
-    Object.keys(QUIZ_DATA || {}).forEach(function(tid){ var t = QUIZ_DATA[tid]; sel += '<option value="'+tid+'">['+t.code+'] '+t.title+'</option>'; });
-    sel += '</select><label class="text-xs font-bold text-slate-500 mb-1 mt-2 block">額外指示（可選）</label><input id="videoPrompt" class="w-full px-3 py-2.5 rounded-xl border text-sm"><label class="text-xs font-bold text-slate-500 mb-1 mt-2 block">片長：<span id="vdLabel">5</span> 秒</label><input type="range" id="vd" min="5" max="15" value="5" step="5" class="w-full" oninput="document.getElementById(\'vdLabel\').textContent=this.value"><button onclick="doVideo()" id="videoBtn" class="w-full bg-purple-600 text-white font-black py-3 rounded-xl mt-3">🎬 生成影片</button>';
-    $('videoForm').innerHTML = sel;
-};
-async function doVideo(){
-    var tid = $('videoTopic').value;
-    if (!tid) return alert('請揀課題');
-    var t = QUIZ_DATA[tid]; extra = $('videoPrompt').value.trim();
-    var dur = parseInt($('vd').value) || 5;
-    $('videoBtn').disabled = true; $('videoLoading').classList.remove('hidden'); $('videoLoading').classList.add('flex');
-    $('videoProgress').style.width = '5%';
-    var sn = searchNotes(t.title);
-    var prompt = 'Traditional Chinese educational animation about BAFS [' + t.code + '] ' + t.title + '. Key content: ' + sn.ctx.substring(0, 300) + (extra ? '. Style: ' + extra : '');
-    try {
-        var frames = {5: 121, 10: 241, 15: 361};
-        var res = await fetch(VID_ENDPOINT, { method:'POST', headers:{ 'Content-Type':'application/json','Authorization':'Bearer '+API_KEY }, body: JSON.stringify({ model: VID_MODEL, prompt: prompt, height: 768, width: 1152, num_frames: frames[dur] || 121, frame_rate: 24 }) });
-        var data = await res.json();
-        var statusUrl = data.status_url || (data.data && data.data.status_url);
-        if (!statusUrl) throw new Error('提交失敗');
-        var url = '';
-        for (var i = 0; i < 40; i++){
-            await new Promise(function(r){ setTimeout(r, 5000); });
-            $('videoStatus').textContent = '生成中...(' + Math.round(i*5+5) + 's)';
-            $('videoProgress').style.width = Math.min(i*4+8, 90) + '%';
-            var pr = await fetch(statusUrl, { headers:{ 'Authorization':'Bearer '+API_KEY } });
-            var pd = await pr.json();
-            var st = pd.status || (pd.data && pd.data.status);
-            if (st === 'SUCCESS' || st === 'succeeded' || st === 'completed'){
-                var ru = pd.response_url || (pd.data && pd.data.response_url);
-                if (ru){ var rr = await fetch(ru, { headers:{ 'Authorization':'Bearer '+API_KEY } }); var rd = await rr.json(); url = (rd.data && rd.data.url) || rd.url; }
-                url = url || (pd.data && pd.data.url) || pd.url;
-                if (url) break;
-            }
-            if (st === 'FAILED' || st === 'failed') throw new Error('生成失敗');
-        }
-        if (!url) throw new Error('超時，稍後再試');
-        $('videoResult').innerHTML = '<video src="'+esc(url)+'" controls class="w-full rounded-xl"></video><a href="'+esc(url)+'" target="_blank" class="text-xs text-indigo-600 font-bold">🔗 打開原片</a>';
-        $('videoProgress').style.width = '100%';
-        $('videoStatus').textContent = '✅ 完成！';
-    } catch(e){ $('videoResult').innerHTML = '<p class="text-red-500 text-sm">⚠️ ' + esc(e.message) + '</p>'; }
-    $('videoLoading').classList.add('hidden'); $('videoLoading').classList.remove('flex');
-    $('videoBtn').disabled = false;
-}
-
 /* ---------- 啟動 ---------- */
 paintMode();
-buildGradeForm();
 if (!restoreChat()) welcome();
 if (typeof QUIZ_DATA === 'undefined' || !QUIZ_DATA) window.QUIZ_DATA = {};
 </script>
