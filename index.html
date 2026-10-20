@@ -76,9 +76,18 @@ var API_KEY = '';
 // 本機 Ollama（需先設定 OLLAMA_ORIGINS=* 並保持 ollama serve 運行）
 // 雙路：先試本機 Ollama（老師部機），失敗自動轉主站代理（所有學生都用得）
 var PROVIDERS = [
-    { url: 'http://127.0.0.1:11434/v1/chat/completions', model: 'gemma2:2b', timeout: 45000 },
+    { url: 'http://127.0.0.1:11434/v1/chat/completions', model: 'gemma2:2b', timeout: 30000, local: true },
     { url: 'https://myf-swcs.free.nf/ai_proxy.php',       model: 'glm-4-flash-250414', timeout: 60000 }
 ];
+var localReady = false;
+// 開頁快速探測本機 Ollama（1.2 秒），冇就唔會拖慢學生
+(function probeLocal(){
+    var ctrl = new AbortController();
+    var timer = setTimeout(function(){ ctrl.abort(); }, 1200);
+    fetch('http://127.0.0.1:11434/api/tags', { signal: ctrl.signal })
+        .then(function(r){ clearTimeout(timer); if (r.ok) localReady = true; })
+        .catch(function(){ clearTimeout(timer); });
+})();
 var ENDPOINT = PROVIDERS[0].url;
 var MODEL = PROVIDERS[0].model;
 
@@ -86,6 +95,7 @@ async function callAI(msgs, maxTokens){
     var lastErr = null;
     for (var i = 0; i < PROVIDERS.length; i++){
         var p = PROVIDERS[i];
+        if (p.local && !localReady) continue;
         var ctrl = new AbortController();
         var timer = setTimeout(function(){ ctrl.abort(); }, p.timeout);
         try {
