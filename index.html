@@ -76,7 +76,7 @@ var API_KEY = 'eeadc107777b44be96a529da6f3073aa.MMjiigBxXkike7Ew';
 var ENDPOINT = 'https://open.bigmodel.cn/api/paas/v4/chat/completions';
 var MODEL = 'glm-4-flash-250414';
 
-var mode = 'savage', hints = 0, expect = 'new', busy = false, chat = [];
+var mode = 'savage', hints = 0, expect = 'new', busy = false, chat = [], seenKeys = [];
 try { if (localStorage.getItem('bafs_mode') === 'gentle') mode = 'gentle'; } catch(e) {}
 
 function $(id){ return document.getElementById(id); }
@@ -128,6 +128,12 @@ function searchNotes(q){
     return { ctx: ctx, cited: cited };
 }
 function pushMsg(role, content, opts){
+    // 防重複：同一段 AI 內容只顯示一次
+    var key = role + '|' + String(content).replace(/\s+/g, '').slice(0, 300);
+    if (role !== 'user') {
+        if (seenKeys.indexOf(key) !== -1) return;
+        seenKeys.push(key);
+    }
     var d = document.createElement('div');
     if (role === 'user') d.className = 'msg-user px-4 py-3 shadow-sm';
     else d.className = 'msg-ai self-start px-4 py-3.5 shadow-sm';
@@ -159,7 +165,7 @@ function answerOption(op){
     $('qInput').value = op;
     send();
 }
-function newChat(){ chat = []; hints = 0; expect = 'new'; $('chatBox').innerHTML = ''; welcome(); try { localStorage.removeItem('bafs_chat'); } catch(e){} }
+function newChat(){ chat = []; hints = 0; expect = 'new'; seenKeys = []; $('chatBox').innerHTML = ''; welcome(); try { localStorage.removeItem('bafs_chat'); } catch(e){} }
 function welcome(){
     pushMsg('ai', '喂喂喂！BAFS 有咩唔明即管問，我唔會即刻開估，會一步步引導你諗。試下問：\n· 什麼是流動資產？\n· 解釋 SMART 目標\n· 損益表和財務狀況表有咩分別？');
 }
@@ -201,25 +207,6 @@ async function send(){
     $('chatLoading').classList.add('hidden'); $('chatLoading').classList.remove('flex');
     busy = false; $('sendBtn').disabled = false;
 }
-function restoreChat(){
-    try {
-        var box = $('chatBox');
-        if (box.children.length) return true; // 已有內容就唔再加
-        var s = localStorage.getItem('bafs_chat');
-        if (!s) return false;
-        var arr = JSON.parse(s);
-        if (!Array.isArray(arr) || !arr.length) return false;
-        var last = '';
-        arr.forEach(function(h){
-            if (h.content === last) return; // 跳過連續重複
-            if (h.role !== 'user' && h.content.indexOf('喂喂喂！BAFS') === 0) return; // 唔重播 welcome
-            last = h.content;
-            pushMsg(h.role === 'user' ? 'user' : 'ai', h.content);
-        });
-        chat = arr; expect = 'answer';
-        return true;
-    } catch(e){ return false; }
-}
 
 /* ---------- 題庫練習 ---------- */
 function loadQuiz(){
@@ -260,7 +247,9 @@ var quizNow = null;
 
 /* ---------- 啟動 ---------- */
 paintMode();
-if (!restoreChat()) welcome();if (typeof QUIZ_DATA === 'undefined' || !QUIZ_DATA) window.QUIZ_DATA = {};
+try { localStorage.removeItem('bafs_chat'); } catch(e){}
+welcome();
+if (typeof QUIZ_DATA === 'undefined' || !QUIZ_DATA) window.QUIZ_DATA = {};
 </script>
 </body>
 </html>
