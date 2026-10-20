@@ -72,9 +72,10 @@ window.onerror = function(msg, src, line) {
     if (el) { el.textContent = '⚠️ 系統錯誤（請截圖俾老師）：' + msg + ' @' + line; el.classList.remove('hidden'); }
 };
 
-var API_KEY = 'eeadc107777b44be96a529da6f3073aa.MMjiigBxXkike7Ew';
-var ENDPOINT = 'https://open.bigmodel.cn/api/paas/v4/chat/completions';
-var MODEL = 'glm-4-flash-250414';
+var API_KEY = 'local-proxy';
+// 本機 opencode relay（經 local_cors_proxy.py 補 CORS）
+var ENDPOINT = 'http://127.0.0.1:8788/v1/chat/completions';
+var MODEL = 'deepseek-v4.1-flash-free';
 
 var mode = 'savage', hints = 0, expect = 'new', busy = false, chat = [], seenKeys = [];
 try { if (localStorage.getItem('bafs_mode') === 'gentle') mode = 'gentle'; } catch(e) {}
@@ -138,7 +139,7 @@ function pushMsg(role, content, opts){
     if (role === 'user') d.className = 'msg-user px-4 py-3 shadow-sm';
     else d.className = 'msg-ai self-start px-4 py-3.5 shadow-sm';
     var inner = role === 'user' ? '<p class="text-sm leading-relaxed">' + esc(content) + '</p>'
-        : '<div class="flex items-center gap-2 mb-1"><span>🤖</span><span class="font-black text-sm text-indigo-600">BAFS 地獄救星</span></div><div class="text-sm text-slate-700" style="white-space:pre-wrap">' + esc(content) + '</div>' + tagLinks(content);
+        : '<div class="flex items-center gap-2 mb-1"><span>🤖</span><span class="font-black text-sm text-indigo-600">BAFS 地獄救星</span></div><div class="text-sm text-slate-700" style="white-space:pre-wrap">' + mdText(content) + '</div>';
     d.innerHTML = inner;
     var box = $('chatBox');
     box.appendChild(d);
@@ -155,8 +156,8 @@ function pushMsg(role, content, opts){
     }
     box.scrollTop = box.scrollHeight;
 }
-function tagLinks(t){
-    return String(t).replace(/\[[A-Z0-9.\-]+\]/g, function(m){ return '<span class="topic-tag">' + esc(m) + '</span>'; });
+function mdText(t){
+    return esc(t).replace(/\[([A-Z0-9.\-]+)\]/g, '<span class="topic-tag">$1</span>');
 }
 function answerOption(op){
     if (op.indexOf('諗唔到') !== -1){ hints++; expect = 'hint'; }
@@ -185,7 +186,7 @@ async function send(){
     chat.slice(-6).forEach(function(h){ msgs.push({ role: h.role === 'user' ? 'user' : 'assistant', content: h.content }); });
     msgs.push({ role: 'user', content: (sn.ctx ? '【筆記內容】\n' + sn.ctx + '\n\n' : '') + '【學生問題】' + q + '\n\n' + dir });
     try {
-        var res = await fetch(ENDPOINT, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + API_KEY }, body: JSON.stringify({ model: MODEL, messages: msgs, temperature: 0.3, max_tokens: 900 }) });
+        var res = await fetch(ENDPOINT, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ model: MODEL, messages: msgs, temperature: 0.3, max_tokens: 2000 }) });
         var data = await res.json();
         if (!res.ok) throw new Error((data.error && (data.error.message || data.error)) || res.statusText);
         var raw = ((data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content) || '').trim();
@@ -235,7 +236,7 @@ async function pickQuiz(sel){
       { role: 'user', content: (sn.ctx ? '【筆記內容】\n' + sn.ctx + '\n\n' : '') + '【題目】'+quizNow.q+'\n【正確】'+quizNow.o[quizNow.c]+'\n【學生揀】'+(quizNow.o[sel]||'') }
     ];
     try {
-        var res = await fetch(ENDPOINT, { method:'POST', headers:{ 'Content-Type':'application/json','Authorization':'Bearer '+API_KEY }, body: JSON.stringify({ model: MODEL, messages: msgs, temperature: 0.3, max_tokens: 1500 }) });
+        var res = await fetch(ENDPOINT, { method:'POST', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify({ model: MODEL, messages: msgs, temperature: 0.3, max_tokens: 1500 }) });
         var data = await res.json();
         var fb = data.choices[0].message.content || '正確答案：' + quizNow.c;
         $('quizResult').innerHTML = '<div style="white-space:pre-wrap">' + esc(fb) + '</div>';
