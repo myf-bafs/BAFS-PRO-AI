@@ -164,16 +164,17 @@ const MODEL = 'glm-4-flash-250414';
 let loading = false, chatHistory = [], currentMode = 'savage', currentTab = 'chat', quizData = null, useAIQuiz = false;
 
 // 單一來源：優先讀 notes_md_all.md（note/ 全文最新版）；fetch 失敗（例如 file:// 開檔）就用 notes_data.js 內嵌版
-function updateNotesStatus() {
+function updateNotesStatus(latest) {
     try {
         const n = (typeof NOTES_MD === 'string' ? (NOTES_MD.match(/^### Topic \d+:/gm) || []).length : 0);
         const el = document.getElementById('notesStatus');
-        if (el) el.textContent = n > 0 ? ('已載入 ' + n + ' 課筆記') : '筆記未載入';
+        if (el) el.textContent = n > 0 ? ('已載入 ' + n + ' 課筆記' + (latest ? '（最新全文）' : '')) : '筆記未載入';
     } catch(e) {}
 }
+updateNotesStatus(); // 先用內置版立即顯示，fetch 到再更新
 fetch('notes_md_all.md').then(r => { if (!r.ok) throw 0; return r.text(); }).then(t => {
     if (t && t.length > 50000 && /### Topic \d+:/.test(t)) NOTES_MD = t;
-    updateNotesStatus();
+    updateNotesStatus(true);
 }).catch(() => { updateNotesStatus(); });
 
 function switchTab(tab) {
