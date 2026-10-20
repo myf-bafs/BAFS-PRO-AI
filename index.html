@@ -74,8 +74,40 @@ window.onerror = function(msg, src, line) {
 
 var API_KEY = '';
 // 本機 Ollama（需先設定 OLLAMA_ORIGINS=* 並保持 ollama serve 運行）
-var ENDPOINT = 'http://127.0.0.1:11434/v1/chat/completions';
-var MODEL = 'gemma2:2b';
+// 雙路：先試本機 Ollama（老師部機），失敗自動轉主站代理（所有學生都用得）
+var PROVIDERS = [
+    { url: 'http://127.0.0.1:11434/v1/chat/completions', model: 'gemma2:2b', timeout: 45000 },
+    { url: 'https://myf-swcs.free.nf/ai_proxy.php',       model: 'glm-4-flash-250414', timeout: 60000 }
+];
+var ENDPOINT = PROVIDERS[0].url;
+var MODEL = PROVIDERS[0].model;
+
+async function callAI(msgs, maxTokens){
+    var lastErr = null;
+    for (var i = 0; i < PROVIDERS.length; i++){
+        var p = PROVIDERS[i];
+        var ctrl = new AbortController();
+        var timer = setTimeout(function(){ ctrl.abort(); }, p.timeout);
+        try {
+            var res = await fetch(p.url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ model: p.model, messages: msgs, temperature: 0.3, max_tokens: maxTokens }),
+                signal: ctrl.signal
+            });
+            clearTimeout(timer);
+            var data = await res.json();
+            if (!res.ok) throw new Error((data.error && (data.error.message || data.error)) || res.statusText);
+            var content = data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content;
+            if (!content || !String(content).trim()) throw new Error('AI 回覆為空');
+            return String(content);
+        } catch(e){
+            clearTimeout(timer);
+            lastErr = e;
+        }
+    }
+    throw lastErr || new Error('所有 AI 連線都失敗');
+}
 
 var mode = 'savage', hints = 0, expect = 'new', busy = false, chat = [], seenKeys = [];
 try { if (localStorage.getItem('bafs_mode') === 'gentle') mode = 'gentle'; } catch(e) {}
@@ -186,10 +218,7 @@ async function send(){
     chat.slice(-6).forEach(function(h){ msgs.push({ role: h.role === 'user' ? 'user' : 'assistant', content: h.content }); });
     msgs.push({ role: 'user', content: (sn.ctx ? '【筆記內容】\n' + sn.ctx + '\n\n' : '') + '【學生問題】' + q + '\n\n' + dir });
     try {
-        var res = await fetch(ENDPOINT, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ model: MODEL, messages: msgs, temperature: 0.3, max_tokens: 2000 }) });
-        var data = await res.json();
-        if (!res.ok) throw new Error((data.error && (data.error.message || data.error)) || res.statusText);
-        var raw = ((data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content) || '').trim();
+        var raw = (await callAI(msgs, 2000)).trim();
         var reply = raw, opts = [], done = false;
         var m = raw.match(/\{[\s\S]*\}/);
         if (m){ try { var j = JSON.parse(m[0]); if (j && j.reply){ reply = String(j.reply); done = !!j.done; if (Array.isArray(j.options)) opts = j.options.filter(function(x){ return typeof x === 'string' && x.trim(); }).slice(0, 4); } } catch(e){} }
@@ -236,9 +265,7 @@ async function pickQuiz(sel){
       { role: 'user', content: (sn.ctx ? '【筆記內容】\n' + sn.ctx + '\n\n' : '') + '【題目】'+quizNow.q+'\n【正確】'+quizNow.o[quizNow.c]+'\n【學生揀】'+(quizNow.o[sel]||'') }
     ];
     try {
-        var res = await fetch(ENDPOINT, { method:'POST', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify({ model: MODEL, messages: msgs, temperature: 0.3, max_tokens: 1500 }) });
-        var data = await res.json();
-        var fb = data.choices[0].message.content || '正確答案：' + quizNow.c;
+        var fb = await callAI(msgs, 1500);
         $('quizResult').innerHTML = '<div style="white-space:pre-wrap">' + esc(fb) + '</div>';
         $('quizResult').classList.remove('hidden');
     } catch(e){ $('quizResult').innerHTML = '⚠️ 連線失敗：' + e.message; $('quizResult').classList.remove('hidden'); }
